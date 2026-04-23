@@ -55,7 +55,7 @@ function renderSummaryBar() {
     winIndex++;
   }
   if (longestWindowLabel) {
-    longestWindowHtml = `<span class="stat"><strong>${longestWindowLabel}</strong>longest window</span>`;
+    longestWindowHtml = `<span class="stat"><strong>${escapeHtml(longestWindowLabel)}</strong>longest window</span>`;
   }
 
   const unapplied = suggestions.length;
@@ -67,6 +67,120 @@ function renderSummaryBar() {
     ${longestWindowHtml}
     <span class="stat"><strong>${unapplied}</strong>suggested groups</span>
   `;
+}
+
+function groupTabsByNativeGroup(tabs) {
+  const groups = new Map();
+  groups.set(-1, []);
+  for (const tab of tabs) {
+    const gid = tab.groupId ?? -1;
+    if (!groups.has(gid)) groups.set(gid, []);
+    groups.get(gid).push(tab);
+  }
+  return groups;
+}
+
+const GROUP_COLOR_CSS = {
+  blue: '#1a73e8', red: '#d93025', yellow: '#f9ab00',
+  green: '#1e8e3e', pink: '#e91e8c', purple: '#7b1fa2',
+  cyan: '#00acc1', orange: '#e65100', grey: '#9e9e9e',
+};
+
+async function getNativeGroupInfo() {
+  try {
+    const groups = await chrome.tabGroups.query({});
+    const map = {};
+    for (const g of groups) {
+      map[g.id] = { title: g.title, color: g.color };
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+async function renderTabList() {
+  const container = document.getElementById('tab-list');
+  const windows = groupTabsByWindow(allTabs);
+  const nativeGroups = await getNativeGroupInfo();
+  let html = '';
+  let winIndex = 1;
+
+  for (const [windowId, winTabs] of windows) {
+    const winOldest = getWindowOldestTab(winTabs);
+    const winAge = winOldest ? formatAge(winOldest.openedAt) : 'unknown';
+    html += `<div class="window-section">
+      <div class="window-header">Window ${winIndex} — ${winOldest?.openedAt ? `open since ${winAge}` : winAge} — ${winTabs.length} tabs</div>`;
+
+    const byGroup = groupTabsByNativeGroup(winTabs);
+    for (const [groupId, groupTabs] of byGroup) {
+      if (groupId !== -1 && nativeGroups[groupId]) {
+        const g = nativeGroups[groupId];
+        const dotColor = GROUP_COLOR_CSS[g.color] || '#888';
+        html += `<div class="group-header">
+          <span class="group-color-dot" style="background:${dotColor}"></span>
+          ${escapeHtml(g.title || '(unnamed group)')}
+        </div>`;
+      }
+      for (const tab of groupTabs) {
+        html += renderTabRow(tab);
+      }
+    }
+
+    html += `</div>`;
+    winIndex++;
+  }
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('.tab-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.tab-close')) return;
+      const tabId = parseInt(row.dataset.tabId);
+      chrome.tabs.update(tabId, { active: true });
+      chrome.windows.update(parseInt(row.dataset.windowId), { focused: true });
+    });
+  });
+
+  container.querySelectorAll('.tab-close').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tabId = parseInt(btn.dataset.tabId);
+      const tab = allTabs.find(t => t.id === tabId);
+      if (tab) closeTab(tab);
+    });
+  });
+}
+
+function renderTabRow(tab) {
+  const title = tab.title || tab.url || '(no title)';
+  const domain = extractDomain(tab.url) || tab.url || '';
+  const openedAge = formatAge(tab.openedAt);
+  const visitedAge = formatAge(tab.lastVisitedAt);
+  const favicon = tab.favIconUrl
+    ? `<img class="tab-favicon" src="${escapeHtml(tab.favIconUrl)}" onerror="this.style.display='none'">`
+    : `<span class="tab-favicon"></span>`;
+  return `
+    <div class="tab-row" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">
+      ${favicon}
+      <div class="tab-info">
+        <div class="tab-title">${escapeHtml(title)}</div>
+        <div class="tab-meta">
+          <span>${escapeHtml(domain)}</span>
+          <span>opened: ${openedAge}</span>
+          <span>visited: ${visitedAge}</span>
+        </div>
+      </div>
+      <button class="tab-close" data-tab-id="${tab.id}" title="Close tab">×</button>
+    </div>`;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 async function init() {
