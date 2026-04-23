@@ -221,6 +221,62 @@ async function undoClose() {
   renderSuggestions();
 }
 
+function renderSuggestions() {
+  const list = document.getElementById('suggestions-list');
+  if (suggestions.length === 0) {
+    list.innerHTML = '<p style="color:#888;font-size:13px;">No suggestions — all tabs are already grouped or unique.</p>';
+    return;
+  }
+
+  list.innerHTML = suggestions.map((s, i) => {
+    const tabs = s.tabIds.map(id => allTabs.find(t => t.id === id)).filter(Boolean);
+    const tabTitles = tabs.slice(0, 3).map(t =>
+      `<div class="suggestion-tab-title">${escapeHtml(t.title || t.url)}</div>`
+    ).join('');
+    const more = tabs.length > 3 ? `<div style="color:#888">+${tabs.length - 3} more</div>` : '';
+    return `
+      <div class="suggestion-card">
+        <div class="suggestion-name">${escapeHtml(s.groupName)}</div>
+        <div class="suggestion-count">${tabs.length} tabs</div>
+        <div class="suggestion-tabs">${tabTitles}${more}</div>
+        <button class="apply-btn" data-suggestion-index="${i}">Apply Group</button>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('.apply-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const i = parseInt(btn.dataset.suggestionIndex);
+      await applyGroup(suggestions[i]);
+    });
+  });
+}
+
+async function applyGroup(suggestion) {
+  const { groupName, color, tabIds } = suggestion;
+  const validTabIds = [];
+  for (const id of tabIds) {
+    try {
+      await chrome.tabs.get(id);
+      validTabIds.push(id);
+    } catch { /* tab no longer exists */ }
+  }
+  if (validTabIds.length < 1) return;
+  const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+  await chrome.tabGroups.update(groupId, { title: groupName, color });
+  await loadData();
+  renderSummaryBar();
+  await renderTabList();
+  renderSuggestions();
+}
+
+document.getElementById('toggle-suggestions').addEventListener('click', () => {
+  const list = document.getElementById('suggestions-list');
+  const btn = document.getElementById('toggle-suggestions');
+  const hidden = list.style.display === 'none';
+  list.style.display = hidden ? '' : 'none';
+  btn.textContent = hidden ? '▲' : '▼';
+});
+
 async function init() {
   const container = document.getElementById('tab-list');
   container.addEventListener('click', (e) => {
