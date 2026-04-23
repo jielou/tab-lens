@@ -281,6 +281,35 @@ document.getElementById('toggle-suggestions').addEventListener('click', () => {
   btn.textContent = hidden ? '▲' : '▼';
 });
 
+function setupLiveUpdates() {
+  chrome.tabs.onRemoved.addListener(async (tabId) => {
+    if (pendingUndo && pendingUndo.tabId === tabId) {
+      return;
+    }
+    allTabs = allTabs.filter(t => t.id !== tabId);
+    suggestions = suggestGroups(allTabs);
+    renderSummaryBar();
+    await renderTabList();
+    renderSuggestions();
+  });
+
+  chrome.tabs.onCreated.addListener(async () => {
+    await loadData();
+    renderSummaryBar();
+    await renderTabList();
+    renderSuggestions();
+  });
+
+  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+    if (changeInfo.title || changeInfo.favIconUrl || changeInfo.url) {
+      await loadData();
+      renderSummaryBar();
+      await renderTabList();
+      renderSuggestions();
+    }
+  });
+}
+
 async function init() {
   const container = document.getElementById('tab-list');
   container.addEventListener('click', (e) => {
