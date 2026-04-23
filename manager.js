@@ -4,6 +4,14 @@ let suggestions = [];
 let pendingUndo = null;
 let undoTimer = null;
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 async function loadData() {
   allTabs = await chrome.tabs.query({});
   const result = await chrome.storage.local.get('timestamps');
@@ -106,7 +114,7 @@ async function renderTabList() {
   let html = '';
   let winIndex = 1;
 
-  for (const [windowId, winTabs] of windows) {
+  for (const [, winTabs] of windows) {
     const winOldest = getWindowOldestTab(winTabs);
     const winAge = winOldest ? formatAge(winOldest.openedAt) : 'unknown';
     html += `<div class="window-section">
@@ -132,24 +140,6 @@ async function renderTabList() {
   }
 
   container.innerHTML = html;
-
-  container.querySelectorAll('.tab-row').forEach(row => {
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.tab-close')) return;
-      const tabId = parseInt(row.dataset.tabId);
-      chrome.tabs.update(tabId, { active: true });
-      chrome.windows.update(parseInt(row.dataset.windowId), { focused: true });
-    });
-  });
-
-  container.querySelectorAll('.tab-close').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const tabId = parseInt(btn.dataset.tabId);
-      const tab = allTabs.find(t => t.id === tabId);
-      if (tab) closeTab(tab);
-    });
-  });
 }
 
 function renderTabRow(tab) {
@@ -175,15 +165,25 @@ function renderTabRow(tab) {
     </div>`;
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 async function init() {
+  const container = document.getElementById('tab-list');
+  container.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('.tab-close');
+    if (closeBtn) {
+      e.stopPropagation();
+      const tabId = parseInt(closeBtn.dataset.tabId);
+      const tab = allTabs.find(t => t.id === tabId);
+      if (tab) closeTab(tab);
+      return;
+    }
+    const row = e.target.closest('.tab-row');
+    if (row) {
+      const tabId = parseInt(row.dataset.tabId);
+      chrome.tabs.update(tabId, { active: true });
+      chrome.windows.update(parseInt(row.dataset.windowId), { focused: true });
+    }
+  });
+
   await loadData();
   renderSummaryBar();
   renderTabList();
