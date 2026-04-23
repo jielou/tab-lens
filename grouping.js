@@ -1,12 +1,9 @@
 const GROUP_COLORS = ['blue','red','yellow','green','pink','purple','cyan','orange'];
 
-const STOP_WORDS = (typeof require !== 'undefined')
-  ? require('./tabData').STOP_WORDS
-  : window.STOP_WORDS;
-
-const extractDomain = (typeof require !== 'undefined')
-  ? require('./tabData').extractDomain
-  : window.extractDomain;
+// In Node/Jest: load from tabData module. In browser: already global from tabData.js.
+if (typeof require !== 'undefined') {
+  var { STOP_WORDS, extractDomain } = require('./tabData'); // eslint-disable-line
+}
 
 function extractKeywords(title) {
   return title
