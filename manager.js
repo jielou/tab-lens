@@ -165,6 +165,61 @@ function renderTabRow(tab) {
     </div>`;
 }
 
+function closeTab(tab) {
+  if (undoTimer) {
+    clearTimeout(undoTimer);
+    undoTimer = null;
+    pendingUndo = null;
+  }
+
+  pendingUndo = {
+    url: tab.url,
+    windowId: tab.windowId,
+    index: tab.index,
+    title: tab.title || tab.url,
+    tabId: tab.id,
+  };
+
+  chrome.tabs.remove(tab.id);
+  allTabs = allTabs.filter(t => t.id !== tab.id);
+  renderTabList();
+  renderSummaryBar();
+
+  showToast(pendingUndo.title);
+}
+
+function showToast(title) {
+  const toast = document.getElementById('toast');
+  const truncated = title.length > 40 ? title.slice(0, 40) + '…' : title;
+  toast.innerHTML = `
+    <span>"${escapeHtml(truncated)}" closed</span>
+    <button id="toast-undo">Undo</button>
+  `;
+  toast.classList.remove('hidden');
+
+  document.getElementById('toast-undo').addEventListener('click', undoClose);
+
+  undoTimer = setTimeout(() => {
+    pendingUndo = null;
+    undoTimer = null;
+    toast.classList.add('hidden');
+  }, 5000);
+}
+
+async function undoClose() {
+  if (!pendingUndo) return;
+  const { url, windowId, index } = pendingUndo;
+  pendingUndo = null;
+  clearTimeout(undoTimer);
+  undoTimer = null;
+  document.getElementById('toast').classList.add('hidden');
+  await chrome.tabs.create({ url, windowId, index });
+  await loadData();
+  renderSummaryBar();
+  await renderTabList();
+  renderSuggestions();
+}
+
 async function init() {
   const container = document.getElementById('tab-list');
   container.addEventListener('click', (e) => {
