@@ -180,7 +180,9 @@ async function closeTab(tab) {
     tabId: tab.id,
   };
 
-  chrome.tabs.remove(tab.id);
+  chrome.tabs.remove(tab.id).catch(err =>
+    console.error('[tab-manager] remove failed:', err)
+  );
   allTabs = allTabs.filter(t => t.id !== tab.id);
   suggestions = suggestGroups(allTabs);
   await renderTabList();

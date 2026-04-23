@@ -1,5 +1,4 @@
 const { suggestGroups } = require('../grouping');
-const { STOP_WORDS } = require('../tabData');
 
 const GROUP_COLORS = ['blue','red','yellow','green','pink','purple','cyan','orange'];
 
