@@ -165,7 +165,7 @@ function renderTabRow(tab) {
     </div>`;
 }
 
-function closeTab(tab) {
+async function closeTab(tab) {
   if (undoTimer) {
     clearTimeout(undoTimer);
     undoTimer = null;
@@ -182,7 +182,8 @@ function closeTab(tab) {
 
   chrome.tabs.remove(tab.id);
   allTabs = allTabs.filter(t => t.id !== tab.id);
-  renderTabList();
+  suggestions = suggestGroups(allTabs);
+  await renderTabList();
   renderSummaryBar();
 
   showToast(pendingUndo.title);
@@ -197,7 +198,7 @@ function showToast(title) {
   `;
   toast.classList.remove('hidden');
 
-  document.getElementById('toast-undo').addEventListener('click', undoClose);
+  document.getElementById('toast-undo').addEventListener('click', () => undoClose(), { once: true });
 
   undoTimer = setTimeout(() => {
     pendingUndo = null;
@@ -241,7 +242,7 @@ async function init() {
 
   await loadData();
   renderSummaryBar();
-  renderTabList();
+  await renderTabList();
   renderSuggestions();
   setupLiveUpdates();
 }
