@@ -261,8 +261,12 @@ async function applyGroup(suggestion) {
     } catch { /* tab no longer exists */ }
   }
   if (validTabIds.length < 1) return;
-  const groupId = await chrome.tabs.group({ tabIds: validTabIds });
-  await chrome.tabGroups.update(groupId, { title: groupName, color });
+  try {
+    const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+    await chrome.tabGroups.update(groupId, { title: groupName, color });
+  } catch (err) {
+    console.error('[tab-manager] applyGroup failed:', err);
+  }
   await loadData();
   renderSummaryBar();
   await renderTabList();
