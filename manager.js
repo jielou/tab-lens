@@ -286,26 +286,39 @@ function setupLiveUpdates() {
     if (pendingUndo && pendingUndo.tabId === tabId) {
       return;
     }
-    allTabs = allTabs.filter(t => t.id !== tabId);
-    suggestions = suggestGroups(allTabs);
-    renderSummaryBar();
-    await renderTabList();
-    renderSuggestions();
+    try {
+      allTabs = allTabs.filter(t => t.id !== tabId);
+      suggestions = suggestGroups(allTabs);
+      renderSummaryBar();
+      await renderTabList();
+      renderSuggestions();
+    } catch (err) {
+      console.error('[tab-manager] onRemoved render failed:', err);
+    }
   });
 
   chrome.tabs.onCreated.addListener(async () => {
-    await loadData();
-    renderSummaryBar();
-    await renderTabList();
-    renderSuggestions();
-  });
-
-  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-    if (changeInfo.title || changeInfo.favIconUrl || changeInfo.url) {
+    try {
+      await new Promise(r => setTimeout(r, 200));
       await loadData();
       renderSummaryBar();
       await renderTabList();
       renderSuggestions();
+    } catch (err) {
+      console.error('[tab-manager] onCreated render failed:', err);
+    }
+  });
+
+  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+    if (changeInfo.title || changeInfo.favIconUrl || changeInfo.url) {
+      try {
+        await loadData();
+        renderSummaryBar();
+        await renderTabList();
+        renderSuggestions();
+      } catch (err) {
+        console.error('[tab-manager] onUpdated render failed:', err);
+      }
     }
   });
 }
