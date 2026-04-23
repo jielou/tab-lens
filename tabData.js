@@ -38,4 +38,9 @@ function mergeTabsWithTimestamps(tabs, timestamps) {
 
 if (typeof module !== 'undefined') {
   module.exports = { extractDomain, formatAge, mergeTabsWithTimestamps, STOP_WORDS };
+} else if (typeof window !== 'undefined') {
+  window.extractDomain = extractDomain;
+  window.formatAge = formatAge;
+  window.mergeTabsWithTimestamps = mergeTabsWithTimestamps;
+  window.STOP_WORDS = STOP_WORDS;
 }

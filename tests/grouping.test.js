@@ -83,4 +83,18 @@ describe('suggestGroups', () => {
     const groups = suggestGroups(tabs);
     expect(GROUP_COLORS).toContain(groups[0].color);
   });
+
+  test('within keyword phase, a tab claimed by first keyword is not reused by second', () => {
+    const tabs = [
+      makeTab(1, 'https://site-a.com/page', 'JavaScript React Tutorial'),
+      makeTab(2, 'https://site-b.com/page', 'JavaScript React Guide'),
+      makeTab(3, 'https://site-c.com/page', 'React Only Page'),
+    ];
+    const groups = suggestGroups(tabs);
+    const jsGroup = groups.find(g => g.groupName === 'javascript');
+    expect(jsGroup).toBeDefined();
+    expect(jsGroup.tabIds).toEqual([1, 2]);
+    const reactGroup = groups.find(g => g.groupName === 'react');
+    expect(reactGroup).toBeUndefined();
+  });
 });
