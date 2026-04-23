@@ -14,7 +14,7 @@ function extractDomain(url) {
 
 function formatAge(timestamp, now = Date.now()) {
   if (timestamp === null || timestamp === undefined) return 'unknown';
-  const diffMs = now - timestamp;
+  const diffMs = Math.max(0, now - timestamp);
   const diffSec = Math.floor(diffMs / 1000);
   if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);

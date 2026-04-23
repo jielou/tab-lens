@@ -16,6 +16,18 @@ describe('extractDomain', () => {
   test('returns empty string for null URL', () => {
     expect(extractDomain(null)).toBe('');
   });
+
+  test('returns empty string for empty string URL', () => {
+    expect(extractDomain('')).toBe('');
+  });
+
+  test('returns empty string for undefined URL', () => {
+    expect(extractDomain(undefined)).toBe('');
+  });
+
+  test('returns empty string for malformed URL', () => {
+    expect(extractDomain('not-a-url')).toBe('');
+  });
 });
 
 describe('formatAge', () => {
@@ -39,6 +51,18 @@ describe('formatAge', () => {
 
   test('formats days ago', () => {
     expect(formatAge(NOW - 2 * 24 * 60 * 60 * 1000, NOW)).toBe('2d ago');
+  });
+
+  test('boundary: exactly 60s shows minutes not seconds', () => {
+    expect(formatAge(NOW - 60000, NOW)).toBe('1m ago');
+  });
+
+  test('boundary: exactly 60m shows hours not minutes', () => {
+    expect(formatAge(NOW - 60 * 60 * 1000, NOW)).toBe('1h ago');
+  });
+
+  test('boundary: exactly 24h shows days not hours', () => {
+    expect(formatAge(NOW - 24 * 60 * 60 * 1000, NOW)).toBe('1d ago');
   });
 });
 
