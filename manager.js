@@ -1,5 +1,6 @@
 let allTabs = [];
 let timestamps = {};
+let closedLog = [];
 let suggestions = [];
 let pendingUndo = null;
 let undoTimer = null;
@@ -14,8 +15,9 @@ function escapeHtml(str) {
 
 async function loadData() {
   allTabs = await chrome.tabs.query({});
-  const result = await chrome.storage.local.get('timestamps');
+  const result = await chrome.storage.local.get(['timestamps', 'closedLog']);
   timestamps = result.timestamps || {};
+  closedLog = result.closedLog || [];
   allTabs = mergeTabsWithTimestamps(allTabs, timestamps);
   suggestions = suggestGroups(allTabs);
 }
@@ -38,42 +40,119 @@ function getWindowOldestTab(tabs) {
   }, null);
 }
 
-function renderSummaryBar() {
-  const windows = groupTabsByWindow(allTabs);
-  const windowCount = windows.size;
-  const tabCount = allTabs.length;
+function renderStatsView() {
+  const tabs = allTabs;
+  const domains = topDomains(tabs);
+  const winStats = windowStats(tabs);
+  const score = focusScore(tabs);
+  const distractor = topDistractor(tabs);
+  const survivor = oldestSurvivor(tabs);
+  const obsession = domainObsession(tabs);
+  const perDay = closedPerDay(closedLog);
 
-  const allOpenedAts = allTabs.map(t => t.openedAt).filter(Boolean);
+  const allOpenedAts = tabs.map(t => t.openedAt).filter(Boolean);
   const oldestTimestamp = allOpenedAts.length ? Math.min(...allOpenedAts) : null;
-  const oldestAge = formatAge(oldestTimestamp);
 
-  let longestWindowHtml = '';
-  let longestWindowAge = 0;
+  const windows = groupTabsByWindow(tabs);
   let longestWindowLabel = '';
-  let winIndex = 1;
+  let longestWindowAge = 0;
+  let winIdx = 1;
   for (const [, winTabs] of windows) {
     const oldest = getWindowOldestTab(winTabs);
-    if (oldest && oldest.openedAt) {
+    if (oldest?.openedAt) {
       const age = Date.now() - oldest.openedAt;
       if (age > longestWindowAge) {
         longestWindowAge = age;
-        longestWindowLabel = `Window ${winIndex}: ${formatAge(oldest.openedAt)}`;
+        longestWindowLabel = `Window ${winIdx}: ${formatAge(oldest.openedAt)}`;
       }
     }
-    winIndex++;
-  }
-  if (longestWindowLabel) {
-    longestWindowHtml = `<span class="stat"><strong>${escapeHtml(longestWindowLabel)}</strong>longest window</span>`;
+    winIdx++;
   }
 
-  const unapplied = suggestions.length;
+  const focusLabel = score === null ? ''
+    : score >= 80 ? 'Great focus!'
+    : score >= 50 ? 'Moderate hoarder'
+    : 'Tab hoarder alert';
 
-  document.getElementById('summary-bar').innerHTML = `
-    <span class="stat"><strong>${tabCount}</strong>tabs</span>
-    <span class="stat"><strong>${windowCount}</strong>windows</span>
-    <span class="stat"><strong>${oldestAge}</strong>oldest tab</span>
-    ${longestWindowHtml}
-    <span class="stat"><strong>${unapplied}</strong>suggested groups</span>
+  document.getElementById('stats-content').innerHTML = `
+    <div class="stats-section">
+      <h3>Overview</h3>
+      <div class="stats-cards">
+        <div class="stat-card"><strong>${tabs.length}</strong><span>tabs</span></div>
+        <div class="stat-card"><strong>${winStats.windowCount}</strong><span>windows</span></div>
+        <div class="stat-card"><strong>${escapeHtml(formatAge(oldestTimestamp))}</strong><span>oldest tab</span></div>
+        ${longestWindowLabel ? `<div class="stat-card"><strong>${escapeHtml(longestWindowLabel)}</strong><span>longest window</span></div>` : ''}
+        <div class="stat-card"><strong>${suggestions.length}</strong><span>suggested groups</span></div>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Domain &amp; Window Breakdown</h3>
+      <div class="stats-row">
+        <div class="stats-col">
+          <h4>Top 5 Domains</h4>
+          <ul class="domain-list">
+            ${domains.length
+              ? domains.map(d => `<li><span class="domain-name">${escapeHtml(d.domain)}</span><span class="domain-count">${d.count} tabs</span></li>`).join('')
+              : '<li style="color:#aaa">No data</li>'}
+          </ul>
+        </div>
+        <div class="stats-col">
+          <h4>Windows</h4>
+          <p>${winStats.windowCount} window${winStats.windowCount !== 1 ? 's' : ''}</p>
+          <p>avg ${winStats.avgTabs} tab${winStats.avgTabs !== 1 ? 's' : ''} / window</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Closed Tabs — Last 5 Days</h3>
+      <div class="closed-per-day">
+        ${perDay.map(d => `
+          <div class="day-entry">
+            <span class="day-label">${escapeHtml(d.label)}</span>
+            <span class="day-count">${d.count || '—'}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Fun Insights</h3>
+      <div class="stats-cards">
+        <div class="stat-card">
+          <strong>${score !== null ? score + '%' : '—'}</strong>
+          <span>Focus Score</span>
+          <small>${escapeHtml(focusLabel)}</small>
+        </div>
+        <div class="stat-card">
+          <strong>Top Distractor</strong>
+          ${distractor ? `
+            <div class="insight-tab">
+              ${distractor.favIconUrl ? `<img src="${escapeHtml(distractor.favIconUrl)}" width="16" height="16" onerror="this.style.display='none'">` : ''}
+              <span>${escapeHtml((distractor.title || distractor.url || '').slice(0, 40))}</span>
+            </div>
+            <small>${distractor.visitCount} visits</small>
+          ` : '<span style="color:#aaa;font-size:12px">No data yet</span>'}
+        </div>
+        <div class="stat-card">
+          <strong>Oldest Survivor</strong>
+          ${survivor ? `
+            <div class="insight-tab">
+              ${survivor.favIconUrl ? `<img src="${escapeHtml(survivor.favIconUrl)}" width="16" height="16" onerror="this.style.display='none'">` : ''}
+              <span>${escapeHtml((survivor.title || survivor.url || '').slice(0, 40))}</span>
+            </div>
+            <small>Open for ${formatAge(survivor.openedAt)}</small>
+          ` : '<span style="color:#aaa;font-size:12px">No data yet</span>'}
+        </div>
+        <div class="stat-card">
+          <strong>Domain Obsession</strong>
+          ${obsession ? `
+            <div class="insight-domain">${escapeHtml(obsession.domain)}</div>
+            <small>${obsession.count} total visits</small>
+          ` : '<span style="color:#aaa;font-size:12px">No data yet</span>'}
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -98,9 +177,7 @@ async function getNativeGroupInfo() {
   try {
     const groups = await chrome.tabGroups.query({});
     const map = {};
-    for (const g of groups) {
-      map[g.id] = { title: g.title, color: g.color };
-    }
+    for (const g of groups) map[g.id] = { title: g.title, color: g.color };
     return map;
   } catch {
     return {};
@@ -109,34 +186,28 @@ async function getNativeGroupInfo() {
 
 async function renderTabList() {
   const container = document.getElementById('tab-list');
-  const windows = groupTabsByWindow(allTabs);
+  const viewMode = localStorage.getItem('viewMode') || 'list';
   const nativeGroups = await getNativeGroupInfo();
+  const byGroup = groupTabsByNativeGroup(allTabs);
   let html = '';
-  let winIndex = 1;
 
-  for (const [, winTabs] of windows) {
-    const winOldest = getWindowOldestTab(winTabs);
-    const winAge = winOldest ? formatAge(winOldest.openedAt) : 'unknown';
-    html += `<div class="window-section">
-      <div class="window-header">Window ${winIndex} — ${winOldest?.openedAt ? `open since ${winAge}` : winAge} — ${winTabs.length} tabs</div>`;
-
-    const byGroup = groupTabsByNativeGroup(winTabs);
-    for (const [groupId, groupTabs] of byGroup) {
-      if (groupId !== -1 && nativeGroups[groupId]) {
-        const g = nativeGroups[groupId];
-        const dotColor = GROUP_COLOR_CSS[g.color] || '#888';
-        html += `<div class="group-header">
-          <span class="group-color-dot" style="background:${dotColor}"></span>
-          ${escapeHtml(g.title || '(unnamed group)')}
-        </div>`;
-      }
-      for (const tab of groupTabs) {
-        html += renderTabRow(tab);
-      }
+  for (const [groupId, groupTabs] of byGroup) {
+    if (groupTabs.length === 0) continue;
+    if (groupId !== -1 && nativeGroups[groupId]) {
+      const g = nativeGroups[groupId];
+      const dotColor = GROUP_COLOR_CSS[g.color] || '#888';
+      html += `<div class="group-header">
+        <span class="group-color-dot" style="background:${dotColor}"></span>
+        ${escapeHtml(g.title || '(unnamed group)')}
+      </div>`;
     }
-
-    html += `</div>`;
-    winIndex++;
+    if (viewMode === 'grid') {
+      html += `<div class="tab-grid">`;
+      for (const tab of groupTabs) html += renderTabCard(tab);
+      html += `</div>`;
+    } else {
+      for (const tab of groupTabs) html += renderTabRow(tab);
+    }
   }
 
   container.innerHTML = html;
@@ -165,6 +236,23 @@ function renderTabRow(tab) {
     </div>`;
 }
 
+function renderTabCard(tab) {
+  const title = tab.title || tab.url || '(no title)';
+  const domain = extractDomain(tab.url) || tab.url || '';
+  const openedAge = formatAge(tab.openedAt);
+  const favicon = tab.favIconUrl
+    ? `<img class="card-favicon" src="${escapeHtml(tab.favIconUrl)}" onerror="this.style.display='none'">`
+    : `<span class="card-favicon"></span>`;
+  return `
+    <div class="tab-card" data-tab-id="${tab.id}" data-window-id="${tab.windowId}" title="${escapeHtml(title)}">
+      ${favicon}
+      <div class="card-title">${escapeHtml(title)}</div>
+      <div class="card-domain">${escapeHtml(domain)}</div>
+      <div class="card-age">${openedAge}</div>
+      <button class="tab-close" data-tab-id="${tab.id}" title="Close tab">×</button>
+    </div>`;
+}
+
 async function closeTab(tab) {
   if (undoTimer) {
     clearTimeout(undoTimer);
@@ -185,9 +273,9 @@ async function closeTab(tab) {
   );
   allTabs = allTabs.filter(t => t.id !== tab.id);
   suggestions = suggestGroups(allTabs);
+  renderStatsView();
   await renderTabList();
-  renderSummaryBar();
-
+  renderSuggestions();
   showToast(pendingUndo.title);
 }
 
@@ -218,7 +306,7 @@ async function undoClose() {
   document.getElementById('toast').classList.add('hidden');
   await chrome.tabs.create({ url, windowId, index });
   await loadData();
-  renderSummaryBar();
+  renderStatsView();
   await renderTabList();
   renderSuggestions();
 }
@@ -270,9 +358,36 @@ async function applyGroup(suggestion) {
     console.error('[tab-manager] applyGroup failed:', err);
   }
   await loadData();
-  renderSummaryBar();
+  renderStatsView();
   await renderTabList();
   renderSuggestions();
+}
+
+function setupNav() {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.dataset.view;
+      document.getElementById('stats-view').classList.toggle('view-hidden', view !== 'stats');
+      document.getElementById('tab-manager-view').classList.toggle('view-hidden', view !== 'tab-manager');
+    });
+  });
+}
+
+function setupViewModeToggle() {
+  const btn = document.getElementById('toggle-view-mode');
+  function updateLabel() {
+    const mode = localStorage.getItem('viewMode') || 'list';
+    btn.textContent = mode === 'list' ? 'Switch to Grid' : 'Switch to List';
+  }
+  updateLabel();
+  btn.addEventListener('click', async () => {
+    const current = localStorage.getItem('viewMode') || 'list';
+    localStorage.setItem('viewMode', current === 'list' ? 'grid' : 'list');
+    updateLabel();
+    await renderTabList();
+  });
 }
 
 document.getElementById('toggle-suggestions').addEventListener('click', () => {
@@ -285,13 +400,11 @@ document.getElementById('toggle-suggestions').addEventListener('click', () => {
 
 function setupLiveUpdates() {
   chrome.tabs.onRemoved.addListener(async (tabId) => {
-    if (pendingUndo && pendingUndo.tabId === tabId) {
-      return;
-    }
+    if (pendingUndo && pendingUndo.tabId === tabId) return;
     try {
       allTabs = allTabs.filter(t => t.id !== tabId);
       suggestions = suggestGroups(allTabs);
-      renderSummaryBar();
+      renderStatsView();
       await renderTabList();
       renderSuggestions();
     } catch (err) {
@@ -303,7 +416,7 @@ function setupLiveUpdates() {
     try {
       await new Promise(r => setTimeout(r, 200));
       await loadData();
-      renderSummaryBar();
+      renderStatsView();
       await renderTabList();
       renderSuggestions();
     } catch (err) {
@@ -315,7 +428,7 @@ function setupLiveUpdates() {
     if (changeInfo.title || changeInfo.favIconUrl || changeInfo.url) {
       try {
         await loadData();
-        renderSummaryBar();
+        renderStatsView();
         await renderTabList();
         renderSuggestions();
       } catch (err) {
@@ -336,7 +449,7 @@ async function init() {
       if (tab) closeTab(tab);
       return;
     }
-    const row = e.target.closest('.tab-row');
+    const row = e.target.closest('.tab-row, .tab-card');
     if (row) {
       const tabId = parseInt(row.dataset.tabId);
       chrome.tabs.update(tabId, { active: true });
@@ -345,9 +458,11 @@ async function init() {
   });
 
   await loadData();
-  renderSummaryBar();
+  renderStatsView();
   await renderTabList();
   renderSuggestions();
+  setupNav();
+  setupViewModeToggle();
   setupLiveUpdates();
 }
 
