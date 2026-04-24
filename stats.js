@@ -1,14 +1,14 @@
-let _extractDomain;
+let _statsDomain;
 if (typeof require !== 'undefined') {
-  _extractDomain = require('./tabData').extractDomain;
+  _statsDomain = require('./tabData').extractDomain;
 } else {
-  _extractDomain = extractDomain; // global from tabData.js
+  _statsDomain = extractDomain; // global from tabData.js
 }
 
 function topDomains(tabs) {
   const counts = new Map();
   for (const tab of tabs) {
-    const d = _extractDomain(tab.url);
+    const d = _statsDomain(tab.url);
     if (!d) continue;
     counts.set(d, (counts.get(d) || 0) + 1);
   }
@@ -46,7 +46,7 @@ function oldestSurvivor(tabs) {
 function domainObsession(tabs) {
   const totals = new Map();
   for (const tab of tabs) {
-    const d = _extractDomain(tab.url);
+    const d = _statsDomain(tab.url);
     if (!d) continue;
     totals.set(d, (totals.get(d) || 0) + (tab.visitCount || 0));
   }

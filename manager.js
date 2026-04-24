@@ -13,6 +13,12 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function hideBrokenFavicons(root) {
+  root.querySelectorAll('img').forEach(img => {
+    img.addEventListener('error', () => { img.style.display = 'none'; }, { once: true });
+  });
+}
+
 async function loadData() {
   allTabs = await chrome.tabs.query({});
   const result = await chrome.storage.local.get(['timestamps', 'closedLog']);
@@ -74,7 +80,8 @@ function renderStatsView() {
     : score >= 50 ? 'Moderate hoarder'
     : 'Tab hoarder alert';
 
-  document.getElementById('stats-content').innerHTML = `
+  const statsContent = document.getElementById('stats-content');
+  statsContent.innerHTML = `
     <div class="stats-section">
       <h3>Overview</h3>
       <div class="stats-cards">
@@ -128,7 +135,7 @@ function renderStatsView() {
           <strong>Top Distractor</strong>
           ${distractor ? `
             <div class="insight-tab">
-              ${distractor.favIconUrl ? `<img src="${escapeHtml(distractor.favIconUrl)}" width="16" height="16" onerror="this.style.display='none'">` : ''}
+              ${distractor.favIconUrl ? `<img src="${escapeHtml(distractor.favIconUrl)}" width="16" height="16" loading="lazy">` : ''}
               <span>${escapeHtml((distractor.title || distractor.url || '').slice(0, 40))}</span>
             </div>
             <small>${distractor.visitCount} visits</small>
@@ -138,7 +145,7 @@ function renderStatsView() {
           <strong>Oldest Survivor</strong>
           ${survivor ? `
             <div class="insight-tab">
-              ${survivor.favIconUrl ? `<img src="${escapeHtml(survivor.favIconUrl)}" width="16" height="16" onerror="this.style.display='none'">` : ''}
+              ${survivor.favIconUrl ? `<img src="${escapeHtml(survivor.favIconUrl)}" width="16" height="16" loading="lazy">` : ''}
               <span>${escapeHtml((survivor.title || survivor.url || '').slice(0, 40))}</span>
             </div>
             <small>Open for ${formatAge(survivor.openedAt)}</small>
@@ -154,6 +161,7 @@ function renderStatsView() {
       </div>
     </div>
   `;
+  hideBrokenFavicons(statsContent);
 }
 
 function groupTabsByNativeGroup(tabs) {
@@ -211,6 +219,7 @@ async function renderTabList() {
   }
 
   container.innerHTML = html;
+  hideBrokenFavicons(container);
 }
 
 function renderTabRow(tab) {
@@ -219,7 +228,7 @@ function renderTabRow(tab) {
   const openedAge = formatAge(tab.openedAt);
   const visitedAge = formatAge(tab.lastVisitedAt);
   const favicon = tab.favIconUrl
-    ? `<img class="tab-favicon" src="${escapeHtml(tab.favIconUrl)}" onerror="this.style.display='none'">`
+    ? `<img class="tab-favicon" src="${escapeHtml(tab.favIconUrl)}" loading="lazy">`
     : `<span class="tab-favicon"></span>`;
   return `
     <div class="tab-row" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">
@@ -241,7 +250,7 @@ function renderTabCard(tab) {
   const domain = extractDomain(tab.url) || tab.url || '';
   const openedAge = formatAge(tab.openedAt);
   const favicon = tab.favIconUrl
-    ? `<img class="card-favicon" src="${escapeHtml(tab.favIconUrl)}" onerror="this.style.display='none'">`
+    ? `<img class="card-favicon" src="${escapeHtml(tab.favIconUrl)}" loading="lazy">`
     : `<span class="card-favicon"></span>`;
   return `
     <div class="tab-card" data-tab-id="${tab.id}" data-window-id="${tab.windowId}" title="${escapeHtml(title)}">
