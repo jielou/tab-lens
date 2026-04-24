@@ -32,6 +32,7 @@ function mergeTabsWithTimestamps(tabs, timestamps) {
       ...tab,
       openedAt: ts.openedAt ?? null,
       lastVisitedAt: ts.lastVisitedAt ?? null,
+      visitCount: ts.visitCount ?? 0,
     };
   });
 }

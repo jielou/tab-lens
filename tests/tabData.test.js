@@ -82,4 +82,18 @@ describe('mergeTabsWithTimestamps', () => {
     expect(result[0].openedAt).toBeNull();
     expect(result[0].lastVisitedAt).toBeNull();
   });
+
+  test('includes visitCount from timestamps', () => {
+    const tabs = [{ id: 1, title: 'Test', url: 'https://example.com' }];
+    const timestamps = { 1: { openedAt: 1000, lastVisitedAt: 2000, visitCount: 5 } };
+    const result = mergeTabsWithTimestamps(tabs, timestamps);
+    expect(result[0].visitCount).toBe(5);
+  });
+
+  test('defaults visitCount to 0 when missing', () => {
+    const tabs = [{ id: 2, title: 'Test', url: 'https://example.com' }];
+    const timestamps = { 2: { openedAt: 1000, lastVisitedAt: 2000 } };
+    const result = mergeTabsWithTimestamps(tabs, timestamps);
+    expect(result[0].visitCount).toBe(0);
+  });
 });
