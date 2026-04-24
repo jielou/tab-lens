@@ -6,17 +6,32 @@
   <link rel="stylesheet" href="manager.css" />
 </head>
 <body>
-  <div id="summary-bar"></div>
-  <div id="main">
-    <div id="tab-list"></div>
-    <div id="suggestions-panel">
-      <h2>Suggested Groups <button id="toggle-suggestions">▲</button></h2>
-      <div id="suggestions-list"></div>
+  <nav id="nav-bar">
+    <button class="nav-btn active" data-view="stats">Stats</button>
+    <button class="nav-btn" data-view="tab-manager">Tab Manager</button>
+  </nav>
+
+  <div id="stats-view">
+    <div id="stats-content"></div>
+  </div>
+
+  <div id="tab-manager-view" class="view-hidden">
+    <div id="tab-manager-header">
+      <button id="toggle-view-mode">Switch to Grid</button>
+    </div>
+    <div id="main">
+      <div id="tab-list"></div>
+      <div id="suggestions-panel">
+        <h2>Suggested Groups <button id="toggle-suggestions">▲</button></h2>
+        <div id="suggestions-list"></div>
+      </div>
     </div>
   </div>
+
   <div id="toast" class="hidden"></div>
   <script src="tabData.js"></script>
   <script src="grouping.js"></script>
+  <script src="stats.js"></script>
   <script src="manager.js"></script>
 </body>
 </html>
