@@ -55,6 +55,7 @@ function renderStatsView() {
   const survivor = oldestSurvivor(tabs);
   const obsession = domainObsession(tabs);
   const perDay = closedPerDay(closedLog);
+  const stale = staleTabs(tabs);
 
   const allOpenedAts = tabs.map(t => t.openedAt).filter(Boolean);
   const oldestTimestamp = allOpenedAts.length ? Math.min(...allOpenedAts) : null;
@@ -75,13 +76,58 @@ function renderStatsView() {
     winIdx++;
   }
 
-  const focusLabel = score === null ? ''
-    : score >= 80 ? 'Great focus!'
-    : score >= 50 ? 'Moderate hoarder'
-    : 'Tab hoarder alert';
+  const scoreRating = score === null ? null
+    : score >= 80 ? { label: 'Very focused', color: '#16a34a' }
+    : score >= 60 ? { label: 'Moderate', color: '#d97706' }
+    : score >= 40 ? { label: 'Scattered', color: '#ea580c' }
+    : { label: 'Highly scattered', color: '#dc2626' };
+
+  const meterColor = scoreRating?.color || '#94a3b8';
+
+  const diagnosisBehavior = score === null
+    ? 'No visit data yet — behavior insights will appear as you browse.'
+    : score >= 60 ? 'Your browsing session looks focused.'
+    : score >= 40 ? 'Your session is moderately scattered.'
+    : 'Your browsing session looks highly scattered.';
+
+  const topTwo = domains.slice(0, 2).map(d => escapeHtml(d.domain));
+  const domainAttention = topTwo.length
+    ? `${topTwo.join(' and ')} ${topTwo.length > 1 ? 'are' : 'is'} dominating your attention.`
+    : '';
+  const staleNote = stale.length
+    ? `${stale.length} tab${stale.length !== 1 ? 's' : ''} may be stale.`
+    : '';
+  const diagnosisDetail = [domainAttention, staleNote].filter(Boolean).join(' ');
+
+  const maxDomainCount = domains[0]?.count || 1;
+
+  const uniqueDomains = new Set(tabs.map(t => extractDomain(t.url)).filter(Boolean)).size;
+
+  const totalClosed = perDay.reduce((s, d) => s + d.count, 0);
+  const todayClosed = perDay[perDay.length - 1]?.count || 0;
+  const avgClosed = totalClosed / 5;
+  const maxDayCount = Math.max(...perDay.map(d => d.count), 1);
+  const streakNote = totalClosed === 0
+    ? 'No cleanup yet this week. Try closing 5 stale tabs to start.'
+    : todayClosed > avgClosed
+    ? `Great work — ${todayClosed} tab${todayClosed !== 1 ? 's' : ''} closed today, above your ${avgClosed.toFixed(1)}/day average.`
+    : `${totalClosed} tab${totalClosed !== 1 ? 's' : ''} closed this week. Keep it up!`;
 
   const statsContent = document.getElementById('stats-content');
   statsContent.innerHTML = `
+    <div class="diagnosis-card">
+      <div class="diagnosis-headline">
+        You have <strong>${tabs.length} open tab${tabs.length !== 1 ? 's' : ''}</strong>
+        across <strong>${winStats.windowCount} window${winStats.windowCount !== 1 ? 's' : ''}</strong>.
+        ${escapeHtml(diagnosisBehavior)}
+      </div>
+      ${diagnosisDetail ? `<div class="diagnosis-detail">${diagnosisDetail}</div>` : ''}
+      <div class="diagnosis-actions">
+        ${stale.length ? `<button class="cta-btn" id="review-stale-btn">Review stale tabs (${stale.length})</button>` : ''}
+        <button class="cta-btn cta-btn--ghost" id="view-all-tabs-btn">View all tabs →</button>
+      </div>
+    </div>
+
     <div class="stats-section">
       <h3>Overview</h3>
       <div class="stats-cards">
@@ -94,15 +140,39 @@ function renderStatsView() {
     </div>
 
     <div class="stats-section">
-      <h3>Domain &amp; Window Breakdown</h3>
+      <h3>Focus Score</h3>
+      <div class="focus-score-wrapper">
+        <div>
+          <div class="focus-score-number" style="color:${meterColor}">${score !== null ? score + '%' : '—'}</div>
+          ${scoreRating ? `<div class="focus-score-label" style="color:${meterColor}">${escapeHtml(scoreRating.label)}</div>` : ''}
+        </div>
+        <div style="flex:1">
+          <div class="focus-meter">
+            <div class="focus-meter-fill" style="width:${score !== null ? score : 0}%;background:${meterColor}"></div>
+          </div>
+          <div class="focus-details">
+            ${tabs.length} open tabs · ${winStats.windowCount} window${winStats.windowCount !== 1 ? 's' : ''} · ${uniqueDomains} domain${uniqueDomains !== 1 ? 's' : ''}
+            ${distractor ? `<br>Frequent revisits to <em>${escapeHtml((distractor.title || distractor.url || '').slice(0, 35))}</em>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Domain Breakdown</h3>
       <div class="stats-row">
-        <div class="stats-col">
-          <h4>Top 5 Domains</h4>
-          <ul class="domain-list">
-            ${domains.length
-              ? domains.map(d => `<li><span class="domain-name">${escapeHtml(d.domain)}</span><span class="domain-count">${d.count} tabs</span></li>`).join('')
-              : '<li style="color:#aaa">No data</li>'}
-          </ul>
+        <div class="stats-col" style="flex:2">
+          ${domains.length
+            ? domains.map(d => `
+              <div class="domain-bar-row">
+                <span class="domain-bar-label">${escapeHtml(d.domain)}</span>
+                <div class="domain-bar-track">
+                  <div class="domain-bar-fill" style="width:${Math.round(d.count / maxDomainCount * 100)}%"></div>
+                </div>
+                <span class="domain-bar-count">${d.count}</span>
+                <button class="link-btn view-domain-tabs-btn" data-domain="${escapeHtml(d.domain)}">View →</button>
+              </div>`).join('')
+            : '<p style="color:var(--color-muted);font-size:13px">No data</p>'}
         </div>
         <div class="stats-col">
           <h4>Windows</h4>
@@ -113,55 +183,90 @@ function renderStatsView() {
     </div>
 
     <div class="stats-section">
-      <h3>Closed Tabs — Last 5 Days</h3>
-      <div class="closed-per-day">
+      <h3>Behavior Insights</h3>
+      <div class="insights-grid">
+
+        <div class="insight-card">
+          <div class="insight-card-label">Most Revisited Tab</div>
+          ${distractor ? `
+            <div class="insight-card-tab">
+              ${distractor.favIconUrl ? `<img src="${escapeHtml(distractor.favIconUrl)}" width="14" height="14" loading="lazy">` : ''}
+              <span class="insight-card-title">${escapeHtml((distractor.title || distractor.url || '').slice(0, 42))}</span>
+            </div>
+            <div class="insight-card-explanation">You came back to this tab ${distractor.visitCount} time${distractor.visitCount !== 1 ? 's' : ''}. Possible distraction or active work?</div>
+            <div class="insight-card-action">
+              <button class="link-btn go-tab-btn" data-tab-id="${distractor.id}" data-window-id="${distractor.windowId}">Switch to tab →</button>
+            </div>
+          ` : '<div class="insight-card-explanation">No visit data yet.</div>'}
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-card-label">Oldest Open Tab</div>
+          ${survivor ? `
+            <div class="insight-card-tab">
+              ${survivor.favIconUrl ? `<img src="${escapeHtml(survivor.favIconUrl)}" width="14" height="14" loading="lazy">` : ''}
+              <span class="insight-card-title">${escapeHtml((survivor.title || survivor.url || '').slice(0, 42))}</span>
+            </div>
+            <div class="insight-card-explanation">Open for ${escapeHtml(formatAge(survivor.openedAt))}. Still useful, or safe to close?</div>
+            <div class="insight-card-action">
+              <button class="link-btn close-tab-btn" data-tab-id="${survivor.id}">Close with undo</button>
+            </div>
+          ` : '<div class="insight-card-explanation">No timestamp data yet.</div>'}
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-card-label">Domain Obsession</div>
+          ${obsession ? `
+            <div class="insight-card-title">${escapeHtml(obsession.domain)}</div>
+            <div class="insight-card-explanation">${obsession.count} visit${obsession.count !== 1 ? 's' : ''} today. This site dominated your attention.</div>
+            <div class="insight-card-action">
+              <button class="link-btn view-domain-tabs-btn" data-domain="${escapeHtml(obsession.domain)}">View ${escapeHtml(obsession.domain)} tabs →</button>
+            </div>
+          ` : '<div class="insight-card-explanation">No visit data yet.</div>'}
+        </div>
+
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <div class="cleanup-header">
+        <h3>Cleanup Progress</h3>
+        <span class="cleanup-streak">${escapeHtml(streakNote)}</span>
+      </div>
+      <div class="day-bar">
         ${perDay.map(d => `
           <div class="day-entry">
+            <div class="day-bar-visual">
+              <div class="day-bar-fill" style="height:${d.count ? Math.max(8, Math.round(d.count / maxDayCount * 40)) : 4}px;${!d.count ? 'background:#E2E8F0' : ''}"></div>
+            </div>
             <span class="day-label">${escapeHtml(d.label)}</span>
             <span class="day-count">${d.count || '—'}</span>
           </div>`).join('')}
       </div>
     </div>
-
-    <div class="stats-section">
-      <h3>Fun Insights</h3>
-      <div class="stats-cards">
-        <div class="stat-card">
-          <strong>${score !== null ? score + '%' : '—'}</strong>
-          <span>Focus Score</span>
-          <small>${escapeHtml(focusLabel)}</small>
-        </div>
-        <div class="stat-card">
-          <strong>Top Distractor</strong>
-          ${distractor ? `
-            <div class="insight-tab">
-              ${distractor.favIconUrl ? `<img src="${escapeHtml(distractor.favIconUrl)}" width="16" height="16" loading="lazy">` : ''}
-              <span>${escapeHtml((distractor.title || distractor.url || '').slice(0, 40))}</span>
-            </div>
-            <small>${distractor.visitCount} visits</small>
-          ` : '<span style="color:#aaa;font-size:12px">No data yet</span>'}
-        </div>
-        <div class="stat-card">
-          <strong>Oldest Survivor</strong>
-          ${survivor ? `
-            <div class="insight-tab">
-              ${survivor.favIconUrl ? `<img src="${escapeHtml(survivor.favIconUrl)}" width="16" height="16" loading="lazy">` : ''}
-              <span>${escapeHtml((survivor.title || survivor.url || '').slice(0, 40))}</span>
-            </div>
-            <small>Open for ${formatAge(survivor.openedAt)}</small>
-          ` : '<span style="color:#aaa;font-size:12px">No data yet</span>'}
-        </div>
-        <div class="stat-card">
-          <strong>Domain Obsession</strong>
-          ${obsession ? `
-            <div class="insight-domain">${escapeHtml(obsession.domain)}</div>
-            <small>${obsession.count} total visits</small>
-          ` : '<span style="color:#aaa;font-size:12px">No data yet</span>'}
-        </div>
-      </div>
-    </div>
   `;
+
   hideBrokenFavicons(statsContent);
+
+  statsContent.querySelector('#review-stale-btn')?.addEventListener('click', switchToTabsView);
+  statsContent.querySelector('#view-all-tabs-btn')?.addEventListener('click', switchToTabsView);
+  statsContent.querySelectorAll('.view-domain-tabs-btn').forEach(btn => {
+    btn.addEventListener('click', switchToTabsView);
+  });
+  statsContent.querySelectorAll('.go-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = parseInt(btn.dataset.tabId);
+      const windowId = parseInt(btn.dataset.windowId);
+      chrome.tabs.update(tabId, { active: true });
+      chrome.windows.update(windowId, { focused: true });
+    });
+  });
+  statsContent.querySelectorAll('.close-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = allTabs.find(t => t.id === parseInt(btn.dataset.tabId));
+      if (tab) closeTab(tab);
+    });
+  });
 }
 
 function groupTabsByNativeGroup(tabs) {
