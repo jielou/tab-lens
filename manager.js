@@ -477,6 +477,18 @@ async function applyGroup(suggestion) {
   renderSuggestions();
 }
 
+function switchToTabsView() {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.nav-btn[data-view="tab-manager"]').classList.add('active');
+  document.getElementById('stats-view').classList.add('view-hidden');
+  document.getElementById('tab-manager-view').classList.remove('view-hidden');
+}
+
+function updateNavTabCount() {
+  const el = document.getElementById('nav-tab-count');
+  if (el) el.textContent = `${allTabs.length} tabs open`;
+}
+
 function setupNav() {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -519,6 +531,7 @@ function setupLiveUpdates() {
       allTabs = allTabs.filter(t => t.id !== tabId);
       suggestions = suggestGroups(allTabs);
       renderStatsView();
+      updateNavTabCount();
       await renderTabList();
       renderSuggestions();
     } catch (err) {
@@ -531,6 +544,7 @@ function setupLiveUpdates() {
       await new Promise(r => setTimeout(r, 200));
       await loadData();
       renderStatsView();
+      updateNavTabCount();
       await renderTabList();
       renderSuggestions();
     } catch (err) {
@@ -543,6 +557,7 @@ function setupLiveUpdates() {
       try {
         await loadData();
         renderStatsView();
+        updateNavTabCount();
         await renderTabList();
         renderSuggestions();
       } catch (err) {
@@ -572,6 +587,8 @@ async function init() {
   });
 
   await loadData();
+  updateNavTabCount();
+  document.getElementById('nav-cleanup-btn')?.addEventListener('click', switchToTabsView);
   renderStatsView();
   await renderTabList();
   renderSuggestions();
