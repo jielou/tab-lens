@@ -2,13 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Tab Manager</title>
+  <title>TabLens</title>
   <link rel="stylesheet" href="manager.css" />
 </head>
 <body>
   <nav id="nav-bar">
-    <button class="nav-btn active" data-view="stats">Stats</button>
-    <button class="nav-btn" data-view="tab-manager">Tab Manager</button>
+    <div id="nav-brand">
+      <img id="nav-logo" src="logo2.png" alt="TabLens">
+      <span id="nav-title">TabLens</span>
+    </div>
+    <span id="nav-tab-count"></span>
+    <button id="nav-cleanup-btn">Clean up</button>
+    <div id="nav-links">
+      <button class="nav-btn active" data-view="stats">Stats</button>
+      <button class="nav-btn" data-view="tab-manager">Tabs</button>
+    </div>
   </nav>
 
   <div id="stats-view">
