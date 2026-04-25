@@ -218,7 +218,7 @@ function renderStatsView() {
           <div class="insight-card-label">Domain Obsession</div>
           ${obsession ? `
             <div class="insight-card-title">${escapeHtml(obsession.domain)}</div>
-            <div class="insight-card-explanation">${obsession.count} visit${obsession.count !== 1 ? 's' : ''} today. This site dominated your attention.</div>
+            <div class="insight-card-explanation">${obsession.count} visit${obsession.count !== 1 ? 's' : ''} across open tabs. This site dominated your attention.</div>
             <div class="insight-card-action">
               <button class="link-btn view-domain-tabs-btn" data-domain="${escapeHtml(obsession.domain)}">View ${escapeHtml(obsession.domain)} tabs →</button>
             </div>
@@ -388,6 +388,7 @@ async function closeTab(tab) {
   allTabs = allTabs.filter(t => t.id !== tab.id);
   suggestions = suggestGroups(allTabs);
   renderStatsView();
+  updateNavTabCount();
   await renderTabList();
   renderSuggestions();
   showToast(pendingUndo.title);
@@ -421,6 +422,7 @@ async function undoClose() {
   await chrome.tabs.create({ url, windowId, index });
   await loadData();
   renderStatsView();
+  updateNavTabCount();
   await renderTabList();
   renderSuggestions();
 }
@@ -473,6 +475,7 @@ async function applyGroup(suggestion) {
   }
   await loadData();
   renderStatsView();
+  updateNavTabCount();
   await renderTabList();
   renderSuggestions();
 }
