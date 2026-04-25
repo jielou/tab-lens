@@ -70,6 +70,16 @@ function closedPerDay(closedLog) {
   return days;
 }
 
+function staleTabs(tabs, now = Date.now()) {
+  const THREE_HOURS = 3 * 60 * 60 * 1000;
+  const ONE_HOUR = 60 * 60 * 1000;
+  return tabs.filter(t => {
+    if (!t.openedAt || now - t.openedAt < ONE_HOUR) return false;
+    if (t.lastVisitedAt && now - t.lastVisitedAt < THREE_HOURS) return false;
+    return true;
+  });
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { topDomains, windowStats, focusScore, topDistractor, oldestSurvivor, domainObsession, closedPerDay };
+  module.exports = { topDomains, windowStats, focusScore, topDistractor, oldestSurvivor, domainObsession, closedPerDay, staleTabs };
 }

@@ -1,6 +1,6 @@
 const {
   topDomains, windowStats, focusScore, topDistractor,
-  oldestSurvivor, domainObsession, closedPerDay,
+  oldestSurvivor, domainObsession, closedPerDay, staleTabs,
 } = require('../stats');
 
 function makeTab(overrides = {}) {
@@ -201,5 +201,36 @@ describe('closedPerDay', () => {
     const old = Date.now() - 6 * 24 * 60 * 60 * 1000;
     const result = closedPerDay([{ ts: old, domain: 'github.com' }]);
     expect(result.every(d => d.count === 0)).toBe(true);
+  });
+});
+
+describe('staleTabs', () => {
+  const NOW = 1700000000000;
+  const FOUR_HOURS = 4 * 60 * 60 * 1000;
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const THIRTY_MIN = 30 * 60 * 1000;
+
+  test('includes tab open 4h with no recent visit', () => {
+    const tab = makeTab({ id: 10, openedAt: NOW - FOUR_HOURS, lastVisitedAt: NOW - FOUR_HOURS });
+    expect(staleTabs([tab], NOW)).toHaveLength(1);
+  });
+
+  test('excludes tab visited within 3 hours', () => {
+    const tab = makeTab({ id: 11, openedAt: NOW - FOUR_HOURS, lastVisitedAt: NOW - TWO_HOURS });
+    expect(staleTabs([tab], NOW)).toHaveLength(0);
+  });
+
+  test('excludes tab open less than 1 hour', () => {
+    const tab = makeTab({ id: 12, openedAt: NOW - THIRTY_MIN, lastVisitedAt: null });
+    expect(staleTabs([tab], NOW)).toHaveLength(0);
+  });
+
+  test('includes tab with null lastVisitedAt open 4h', () => {
+    const tab = makeTab({ id: 13, openedAt: NOW - FOUR_HOURS, lastVisitedAt: null });
+    expect(staleTabs([tab], NOW)).toHaveLength(1);
+  });
+
+  test('returns empty array for empty input', () => {
+    expect(staleTabs([], NOW)).toHaveLength(0);
   });
 });
