@@ -160,6 +160,77 @@ function openTabsPerDay(tabs, closedLog, numDays = 14) {
   return days;
 }
 
+function isSearchPage(url) {
+  if (!url) return false;
+  const patterns = [
+    /google\.com\/search/,
+    /bing\.com\/search/,
+    /youtube\.com\/results/,
+    /reddit\.com\/search/,
+    /github\.com\/search/,
+    /x\.com\/search/
+  ];
+  return patterns.some(p => p.test(url));
+}
+
+function isRedirectPage(url) {
+  if (!url) return false;
+  const patterns = [
+    /google\.com\/url\?/,
+    /\/redirect\b/,
+    /\/redirecting\b/,
+    /\/out\b/,
+    /\/outbound\b/,
+    /\/external\b/,
+    /\/away\b/,
+    /t\.co\b/,
+    /slack-redir\.net/,
+    /facebook\.com\/l\.php/,
+    /linkedin\.com\/safety\/go/
+  ];
+  return patterns.some(p => p.test(url));
+}
+
+function isBlankPage(url) {
+  if (!url) return false;
+  return url === 'about:blank' ||
+         url === 'chrome://newtab' ||
+         url === 'edge://newtab' ||
+         url === 'brave://newtab';
+}
+
+function findTemporaryTabs(tabs) {
+  return tabs.filter(t => isSearchPage(t.url) || isRedirectPage(t.url) || isBlankPage(t.url));
+}
+
+function findStaleTabs(tabs) {
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  return tabs.filter(t => t.openedAt && (now - t.openedAt) >= ONE_DAY);
+}
+
+function findDistractedTabs(tabs) {
+  return tabs.filter(t => (t.visitCount || 0) >= 10);
+}
+
+function getSuggestedReviewCounts(tabs) {
+  const duplicates = findDuplicateTabs(tabs);
+  const stale = findStaleTabs(tabs);
+  const distracted = findDistractedTabs(tabs);
+  const temporary = findTemporaryTabs(tabs);
+  return {
+    duplicateCount: duplicates.count,
+    staleCount: stale.length,
+    distractedCount: distracted.length,
+    temporaryCount: temporary.length,
+    total: duplicates.count + stale.length + distracted.length + temporary.length,
+    duplicates,
+    stale,
+    distracted,
+    temporary
+  };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { topDomains, windowStats, focusScore, topDistractor, oldestSurvivor, domainObsession, closedPerDay, staleTabs, openTabsPerDay };
+  module.exports = { topDomains, windowStats, focusScore, topDistractor, oldestSurvivor, domainObsession, closedPerDay, staleTabs, openTabsPerDay, findTemporaryTabs, findStaleTabs, findDistractedTabs, getSuggestedReviewCounts };
 }

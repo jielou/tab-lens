@@ -7,6 +7,8 @@ let suggestions = [];
 let pendingUndo = null;
 let undoTimer = null;
 let searchQuery = '';
+let selectedTabIds = new Set();
+let activeFilter = 'all';
 
 function escapeHtml(str) {
   return String(str)
@@ -183,6 +185,14 @@ function renderStatsView() {
     dupCard.style.opacity = '0.6';
     dupCard.style.pointerEvents = 'none';
   }
+
+  // Suggested Review
+  const reviewData = getSuggestedReviewCounts(tabs);
+  document.getElementById('suggested-review-count').textContent = reviewData.total;
+  document.getElementById('duplicate-review-count').textContent = reviewData.duplicateCount;
+  document.getElementById('stale-review-count').textContent = reviewData.staleCount;
+  document.getElementById('distracted-review-count').textContent = reviewData.distractedCount;
+  document.getElementById('temporary-review-count').textContent = reviewData.temporaryCount;
 
   // Chart
   renderChart(trend);
@@ -420,18 +430,35 @@ function sortTabs(tabs, mode) {
   return sorted;
 }
 
+function applyFilter(tabs, filter) {
+  if (filter === 'all') return tabs;
+  if (filter === 'duplicate') {
+    const dupResult = findDuplicateTabs(tabs);
+    const dupUrls = new Set(dupResult.duplicates.map(t => t.url));
+    return tabs.filter(t => dupUrls.has(t.url));
+  }
+  if (filter === 'stale') return findStaleTabs(tabs);
+  if (filter === 'distracted') return findDistractedTabs(tabs);
+  if (filter === 'temporary') return findTemporaryTabs(tabs);
+  if (filter === 'grouped') return tabs.filter(t => t.groupId !== -1);
+  if (filter === 'ungrouped') return tabs.filter(t => t.groupId === -1);
+  return tabs;
+}
+
 async function renderTabList() {
   const container = document.getElementById('tab-list');
   const viewMode = localStorage.getItem('viewMode') || 'list';
   const sortMode = getSortMode();
   const nativeGroups = await getNativeGroupInfo();
 
-  const filtered = searchQuery
+  let filtered = searchQuery
     ? allTabs.filter(t =>
         (t.title || '').toLowerCase().includes(searchQuery) ||
         (t.url || '').toLowerCase().includes(searchQuery)
       )
-    : allTabs;
+    : [...allTabs];
+
+  filtered = applyFilter(filtered, activeFilter);
 
   const byGroup = groupTabsByNativeGroup(filtered);
   let html = '';
@@ -458,7 +485,7 @@ async function renderTabList() {
 
   container.innerHTML = html;
   hideBrokenFavicons(container);
-  updateTabManagerStats();
+  updateSelectionUI();
 }
 
 function renderTabRow(tab) {
@@ -473,8 +500,10 @@ function renderTabRow(tab) {
   const visitBadge = (tab.visitCount || 0) > 10
     ? `<span class="visit-badge">${tab.visitCount}×</span>`
     : '';
+  const isSelected = selectedTabIds.has(tab.id);
   return `
     <div class="tab-row" data-tab-id="${tab.id}" data-window-id="${tab.windowId}" style="border-left-color:${domainColor}">
+      <input type="checkbox" class="tab-checkbox" data-tab-id="${tab.id}" ${isSelected ? 'checked' : ''}>
       ${favicon}
       <div class="tab-info">
         <div class="tab-title">${escapeHtml(title)}</div>
@@ -500,8 +529,10 @@ function renderTabCard(tab) {
   const visitBadge = (tab.visitCount || 0) > 10
     ? `<span class="visit-badge">${tab.visitCount}×</span>`
     : '';
+  const isSelected = selectedTabIds.has(tab.id);
   return `
     <div class="tab-card" data-tab-id="${tab.id}" data-window-id="${tab.windowId}" title="${escapeHtml(title)}" style="border-top-color:${domainColor}">
+      <input type="checkbox" class="tab-checkbox" data-tab-id="${tab.id}" ${isSelected ? 'checked' : ''}>
       ${favicon}
       <div class="card-title">${escapeHtml(title)}</div>
       <div class="card-domain">${escapeHtml(domain)}</div>
@@ -532,6 +563,7 @@ async function closeTab(tab) {
     console.error('[tab-manager] remove failed:', err)
   );
   allTabs = allTabs.filter(t => t.id !== tab.id);
+  selectedTabIds.delete(tab.id);
   suggestions = suggestGroups(allTabs);
   renderStatsView();
   updateNavCounts();
@@ -588,10 +620,22 @@ function updateTabManagerStats() {
   const ungroupedCount = allTabs.filter(t => t.groupId === -1).length;
   el.innerHTML = `
     <span><strong>${allTabs.length}</strong> tabs</span>
-    <span><strong>${windowCount}</strong> window${windowCount !== 1 ? 's' : ''}</span>
-    <span><strong>${groupCount}</strong> group${groupCount !== 1 ? 's' : ''}</span>
+    <span><strong>${windowCount}</strong> windows</span>
+    <span><strong>${groupCount}</strong> groups</span>
     <span><strong>${ungroupedCount}</strong> ungrouped</span>
   `;
+}
+
+function updateSelectionUI() {
+  const countEl = document.getElementById('selected-count');
+  const selectAll = document.getElementById('select-all');
+  if (countEl) countEl.textContent = `${selectedTabIds.size} selected`;
+  if (selectAll) {
+    const visibleIds = Array.from(document.querySelectorAll('.tab-checkbox')).map(cb => parseInt(cb.dataset.tabId));
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedTabIds.has(id));
+    selectAll.checked = allVisibleSelected;
+    selectAll.indeterminate = !allVisibleSelected && visibleIds.some(id => selectedTabIds.has(id));
+  }
 }
 
 function renderSuggestions() {
@@ -735,6 +779,8 @@ function switchToTabsView() {
   document.querySelector('.nav-btn[data-view="tab-manager"]').classList.add('active');
   document.getElementById('overview-view').classList.add('view-hidden');
   document.getElementById('tab-manager-view').classList.remove('view-hidden');
+  const resetWrapper = document.querySelector('.reset-stats-wrapper');
+  if (resetWrapper) resetWrapper.style.display = 'none';
 }
 
 function switchToOverviewView() {
@@ -742,6 +788,8 @@ function switchToOverviewView() {
   document.querySelector('.nav-btn[data-view="overview"]').classList.add('active');
   document.getElementById('tab-manager-view').classList.add('view-hidden');
   document.getElementById('overview-view').classList.remove('view-hidden');
+  const resetWrapper = document.querySelector('.reset-stats-wrapper');
+  if (resetWrapper) resetWrapper.style.display = '';
 }
 
 function updateNavCounts() {
@@ -762,20 +810,7 @@ function setupNav() {
   });
 }
 
-function setupViewModeToggle() {
-  const btn = document.getElementById('toggle-view-mode');
-  function updateLabel() {
-    const mode = localStorage.getItem('viewMode') || 'list';
-    btn.textContent = mode === 'list' ? 'Switch to Grid' : 'Switch to List';
-  }
-  updateLabel();
-  btn.addEventListener('click', async () => {
-    const current = localStorage.getItem('viewMode') || 'list';
-    localStorage.setItem('viewMode', current === 'list' ? 'grid' : 'list');
-    updateLabel();
-    await renderTabList();
-  });
-}
+
 
 /* ── Live updates ── */
 
@@ -828,6 +863,18 @@ async function init() {
   // Tab list click handler
   const container = document.getElementById('tab-list');
   container.addEventListener('click', (e) => {
+    const checkbox = e.target.closest('.tab-checkbox');
+    if (checkbox) {
+      e.stopPropagation();
+      const tabId = parseInt(checkbox.dataset.tabId);
+      if (checkbox.checked) {
+        selectedTabIds.add(tabId);
+      } else {
+        selectedTabIds.delete(tabId);
+      }
+      updateSelectionUI();
+      return;
+    }
     const closeBtn = e.target.closest('.tab-close');
     if (closeBtn) {
       e.stopPropagation();
@@ -860,6 +907,82 @@ async function init() {
     });
   }
 
+  // View mode toggle
+  const currentViewMode = localStorage.getItem('viewMode') || 'list';
+  document.querySelectorAll('.view-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === currentViewMode);
+    btn.addEventListener('click', async () => {
+      const mode = btn.dataset.mode;
+      localStorage.setItem('viewMode', mode);
+      document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      await renderTabList();
+    });
+  });
+
+  // Quick filters
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeFilter = pill.dataset.filter;
+      renderTabList();
+    });
+  });
+
+  // Select all
+  document.getElementById('select-all').addEventListener('change', (e) => {
+    const visibleCheckboxes = document.querySelectorAll('.tab-checkbox');
+    visibleCheckboxes.forEach(cb => {
+      cb.checked = e.target.checked;
+      const tabId = parseInt(cb.dataset.tabId);
+      if (e.target.checked) {
+        selectedTabIds.add(tabId);
+      } else {
+        selectedTabIds.delete(tabId);
+      }
+    });
+    updateSelectionUI();
+  });
+
+  // Group selected
+  document.getElementById('group-selected-btn').addEventListener('click', async () => {
+    const ids = Array.from(selectedTabIds);
+    if (ids.length < 2) {
+      showToastMessage('Select at least 2 tabs to group');
+      return;
+    }
+    try {
+      const groupId = await chrome.tabs.group({ tabIds: ids });
+      await chrome.tabGroups.update(groupId, { title: 'Custom Group', color: 'blue' });
+      selectedTabIds.clear();
+      await loadData();
+      renderStatsView();
+      updateNavCounts();
+      await renderTabList();
+      renderSuggestions();
+      showToastMessage(`${ids.length} tabs grouped`);
+    } catch (err) {
+      console.error('[tab-manager] group failed:', err);
+    }
+  });
+
+  // Close selected
+  document.getElementById('close-selected-btn').addEventListener('click', async () => {
+    const ids = Array.from(selectedTabIds);
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      try { await chrome.tabs.remove(id); } catch { /* ignore */ }
+    }
+    selectedTabIds.clear();
+    await loadData();
+    renderStatsView();
+    updateNavCounts();
+    await renderTabList();
+    renderSuggestions();
+    showToastMessage(`${ids.length} tabs closed`);
+  });
+
   // Suggestions toggle
   document.getElementById('toggle-suggestions').addEventListener('click', () => {
     const list = document.getElementById('suggestions-list');
@@ -881,6 +1004,11 @@ async function init() {
   // Duplicate tabs cleanup
   document.getElementById('duplicate-card').addEventListener('click', () => {
     showDeleteConfirm();
+  });
+
+  // Start review button
+  document.getElementById('start-review-btn').addEventListener('click', () => {
+    switchToTabsView();
   });
 
   // Reset stats
@@ -920,7 +1048,7 @@ async function init() {
   await loadData();
   updateNavCounts();
   setupNav();
-  setupViewModeToggle();
+
   renderStatsView();
   await renderTabList();
   renderSuggestions();

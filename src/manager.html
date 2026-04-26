@@ -19,6 +19,10 @@
       <span id="nav-tab-count" class="badge badge-blue">0 tabs</span>
       <span id="nav-window-count" class="badge badge-green">0 windows</span>
     </div>
+    <div class="reset-stats-wrapper">
+      <button id="reset-stats-btn" class="reset-stats-btn">Reset stats</button>
+      <p class="reset-stats-hint">Open tabs counted as open today · History cleared</p>
+    </div>
   </nav>
 
   <div id="app-body">
@@ -28,9 +32,86 @@
           <h1>You have <span class="tab-count-highlight">0</span> tabs open</h1>
           <p class="overview-subtitle" id="overview-subtitle">Today · 0 windows</p>
         </div>
-        <div class="overview-header-right">
-          <button id="reset-stats-btn" class="reset-stats-btn">Reset stats</button>
-          <p class="reset-stats-hint">Open tabs counted as open today · History cleared</p>
+      </div>
+
+      <div class="dashboard-row suggested-review-row">
+        <div class="dashboard-card suggested-review-card">
+          <div class="suggested-review-header">
+            <div class="suggested-review-title-group">
+              <div class="suggested-review-icon-bg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              </div>
+              <div>
+                <h3 class="suggested-review-title">Suggested Review</h3>
+                <p class="suggested-review-subtitle"><span id="suggested-review-count">0</span> tabs may need your attention</p>
+              </div>
+            </div>
+            <span class="impact-badge">⚡ High impact</span>
+          </div>
+          <div class="review-categories">
+            <div class="review-category">
+              <div class="review-category-icon-bg" style="color:#E11D48;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </div>
+              <div class="review-category-text">
+                <div class="review-category-label">Duplicate Tabs</div>
+                <div class="review-category-value" id="duplicate-review-count" style="color:#E11D48;">0</div>
+              </div>
+            </div>
+            <div class="review-category">
+              <div class="review-category-icon-bg" style="color:#6366F1;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <div class="review-category-text">
+                <div class="review-category-label">Stale Tabs</div>
+                <div class="review-category-value" id="stale-review-count" style="color:#6366F1;">0</div>
+              </div>
+            </div>
+            <div class="review-category">
+              <div class="review-category-icon-bg" style="color:#F59E0B;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              </div>
+              <div class="review-category-text">
+                <div class="review-category-label">Distracted Tabs</div>
+                <div class="review-category-value" id="distracted-review-count" style="color:#F59E0B;">0</div>
+              </div>
+            </div>
+            <div class="review-category">
+              <div class="review-category-icon-bg" style="color:#10B981;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              </div>
+              <div class="review-category-text">
+                <div class="review-category-label">Temporary Tabs</div>
+                <div class="review-category-value" id="temporary-review-count" style="color:#10B981;">0</div>
+              </div>
+            </div>
+          </div>
+          <button class="start-review-btn" id="start-review-btn">Start review <span class="start-review-arrow">›</span></button>
+          <p class="review-hint"><span class="review-hint-icon">🛡</span> Nothing closes automatically.</p>
+        </div>
+        <div class="dashboard-card alert-card">
+          <div class="card-header">
+            <div class="card-header-left">
+              <div class="card-header-icon-bg" style="background:#FFF7ED; color:#F97316;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+              </div>
+              <h3>DISTRACTED TABS</h3>
+            </div>
+            <span class="info-tooltip" data-tip="Tabs you switch to most often. High visit count = frequent distractions.">ⓘ</span>
+          </div>
+          <div class="alert-list" id="distraction-list"></div>
+        </div>
+        <div class="dashboard-card zombie-card">
+          <div class="card-header">
+            <div class="card-header-left">
+              <div class="card-header-icon-bg" style="background:#F5F3FF; color:#8B5CF6;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              </div>
+              <h3>Zombie Tabs</h3>
+            </div>
+            <span class="info-tooltip" data-tip="Tabs open for 1+ hours with no activity in 3+ hours. Time to close them.">ⓘ</span>
+          </div>
+          <div class="zombie-list" id="zombie-list"></div>
         </div>
       </div>
 
@@ -90,7 +171,12 @@
       <div class="dashboard-row">
         <div class="dashboard-card">
           <div class="card-header">
-            <h3>Tab trend</h3>
+            <div class="card-header-left">
+              <div class="card-header-icon-bg" style="background:transparent; border:none; color:#4F46E5;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+              </div>
+              <h3>Tab trend</h3>
+            </div>
             <span class="info-tooltip" data-tip="Daily snapshot of how many tabs were open each day.">ⓘ</span>
           </div>
           <div class="chart-wrapper" id="tab-trend-chart">
@@ -111,59 +197,108 @@
         </div>
         <div class="dashboard-card">
           <div class="card-header">
-            <h3>Top Domains</h3>
+            <div class="card-header-left">
+              <div class="card-header-icon-bg" style="background:transparent; border:none; color:#4F46E5;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              </div>
+              <h3>Top Domains</h3>
+            </div>
             <span class="info-tooltip" data-tip="Most common domains across all your open tabs.">ⓘ</span>
           </div>
           <div class="domains-list" id="top-domains-list"></div>
         </div>
       </div>
-
-      <div class="dashboard-row">
-        <div class="dashboard-card alert-card">
-          <div class="card-header">
-            <h3>⚠ Distraction Alert · Top 5</h3>
-            <span class="info-tooltip" data-tip="Tabs you switch to most often. High visit count = frequent distractions.">ⓘ</span>
-          </div>
-          <div class="alert-list" id="distraction-list"></div>
-        </div>
-        <div class="dashboard-card zombie-card">
-          <div class="card-header">
-            <h3>💤 Zombie Tabs · Top 5</h3>
-            <span class="info-tooltip" data-tip="Tabs open for 1+ hours with no activity in 3+ hours. Time to close them.">ⓘ</span>
-          </div>
-          <div class="zombie-list" id="zombie-list"></div>
-        </div>
-      </div>
     </div>
 
     <div id="tab-manager-view" class="view-hidden">
-    <div id="tab-manager-header">
-      <div id="tab-search-wrapper">
-        <input type="text" id="tab-search" placeholder="Search tabs..." autocomplete="off"/>
+      <div id="tab-manager-stats"></div>
+
+      <div id="tab-manager-toolbar">
+        <div id="tab-search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="tab-search" placeholder="Search tabs..." autocomplete="off"/>
+        </div>
+        <div id="tab-toolbar-right">
+          <div id="tab-sort-control">
+            <span class="sort-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10"/><path d="M11 9h7"/><path d="M11 13h4"/><path d="M3 17l3 3 3-3"/><path d="M6 18V4"/></svg>
+            </span>
+            <select id="tab-sort">
+              <option value="default">Default</option>
+              <option value="visited-desc">Visited: newest</option>
+              <option value="visited-asc">Visited: oldest</option>
+              <option value="opened-desc">Opened: newest</option>
+              <option value="opened-asc">Opened: oldest</option>
+            </select>
+          </div>
+          <div id="view-mode-toggle">
+            <button id="view-mode-grid" class="view-mode-btn active" data-mode="grid">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              Grid
+            </button>
+            <button id="view-mode-list" class="view-mode-btn" data-mode="list">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              List
+            </button>
+          </div>
+        </div>
       </div>
-      <div id="tab-sort-control">
-        <span class="sort-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10"/><path d="M11 9h7"/><path d="M11 13h4"/><path d="M3 17l3 3 3-3"/><path d="M6 18V4"/></svg>
-        </span>
-        <select id="tab-sort">
-          <option value="default">Default</option>
-          <option value="visited-desc">Visited: newest</option>
-          <option value="visited-asc">Visited: oldest</option>
-          <option value="opened-desc">Opened: newest</option>
-          <option value="opened-asc">Opened: oldest</option>
-        </select>
+
+      <div id="quick-filters">
+        <button class="filter-pill active" data-filter="all">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#4F46E5;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          All
+        </button>
+        <button class="filter-pill" data-filter="duplicate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#E11D48;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Duplicate
+        </button>
+        <button class="filter-pill" data-filter="stale">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#6366F1;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Stale
+        </button>
+        <button class="filter-pill" data-filter="distracted">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#F59E0B;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+          Distracted
+        </button>
+        <button class="filter-pill" data-filter="temporary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#10B981;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          Temporary
+        </button>
+        <button class="filter-pill" data-filter="grouped">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#8B5CF6;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Grouped
+        </button>
+        <button class="filter-pill" data-filter="ungrouped">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          Ungrouped
+        </button>
       </div>
-      <button id="toggle-view-mode">Switch to Grid</button>
+
+      <div id="selection-toolbar">
+        <label class="select-all-label">
+          <input type="checkbox" id="select-all">
+          <span>Select all</span>
+        </label>
+        <button id="group-selected-btn" class="toolbar-action-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          Group selected
+        </button>
+        <button id="close-selected-btn" class="toolbar-action-btn danger">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          Close selected
+        </button>
+        <span id="selected-count" class="selected-count">0 selected</span>
+      </div>
+
+      <div id="main">
+        <div id="tab-list"></div>
+        <div id="suggestions-panel">
+          <h2>Suggested Groups <button id="toggle-suggestions">▲</button></h2>
+          <div id="suggestions-list"></div>
+        </div>
+      </div>
     </div>
-    <div id="tab-manager-stats"></div>
-    <div id="main">
-      <div id="tab-list"></div>
-      <div id="suggestions-panel">
-        <h2>Suggested Groups <button id="toggle-suggestions">▲</button></h2>
-        <div id="suggestions-list"></div>
-      </div>
-    </div>
-  </div>
   </div>
 
   <div id="toast" class="hidden"></div>

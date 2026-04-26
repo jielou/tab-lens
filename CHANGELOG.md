@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.0] - 2026-04-26
+
+### Added
+- **Suggested Review** card on overview dashboard summarizing tabs that need attention
+  - Duplicate tabs count
+  - Stale tabs (open ≥ 1 day) count
+  - Distracted tabs (visit count ≥ 10) count
+  - Temporary tabs (search / redirect / blank pages) count
+- **Quick Filters** in Tab Manager: All, Duplicate, Stale, Distracted, Temporary, Grouped, Ungrouped
+- **Batch Selection Toolbar** in Tab Manager
+  - Select all / deselect all with indeterminate state
+  - Group selected tabs into a new Chrome tab group
+  - Close selected tabs in bulk
+- Card header icons across all dashboard cards for stronger visual hierarchy
+- `findTemporaryTabs`, `findStaleTabs`, `findDistractedTabs`, `getSuggestedReviewCounts` helpers in `stats.js`
+
+### Changed
+- **Tab Manager toolbar** redesigned
+  - View-mode switcher changed from single toggle to segmented Grid / List buttons
+  - Search input now shows a search icon
+- **Distraction Alert** and **Zombie Tabs** cards moved into the new suggested-review row with refreshed styling
+- **Reset Stats** button relocated from overview header to nav bar; redesigned as pill button with hover-reveal hint
+- Dashboard color tokens refined (purple palette shifted to blue, background tint adjusted)
+- Body text color now uses primary brand color for stronger identity
+
 ## [0.1.0] - 2026-04-25
 
 ### Added
