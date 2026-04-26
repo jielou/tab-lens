@@ -390,9 +390,40 @@ async function getNativeGroupInfo() {
   }
 }
 
+function getSortMode() {
+  return localStorage.getItem('tabSortMode') || 'default';
+}
+
+function sortTabs(tabs, mode) {
+  if (mode === 'default') return tabs;
+  const sorted = [...tabs];
+  sorted.sort((a, b) => {
+    const key = mode.startsWith('visited') ? 'lastVisitedAt' : 'openedAt';
+    const aVal = a[key];
+    const bVal = b[key];
+    const isAsc = mode.endsWith('asc');
+
+    const aNull = aVal === null || aVal === undefined;
+    const bNull = bVal === null || bVal === undefined;
+
+    if (aNull && bNull) return 0;
+    if (aNull) {
+      // For visited-asc, null (never visited) is "oldest" → first
+      return isAsc && mode.startsWith('visited') ? -1 : 1;
+    }
+    if (bNull) {
+      return isAsc && mode.startsWith('visited') ? 1 : -1;
+    }
+
+    return isAsc ? aVal - bVal : bVal - aVal;
+  });
+  return sorted;
+}
+
 async function renderTabList() {
   const container = document.getElementById('tab-list');
   const viewMode = localStorage.getItem('viewMode') || 'list';
+  const sortMode = getSortMode();
   const nativeGroups = await getNativeGroupInfo();
 
   const filtered = searchQuery
@@ -407,6 +438,7 @@ async function renderTabList() {
 
   for (const [groupId, groupTabs] of byGroup) {
     if (groupTabs.length === 0) continue;
+    const sortedTabs = sortTabs(groupTabs, sortMode);
     if (groupId !== -1 && nativeGroups[groupId]) {
       const g = nativeGroups[groupId];
       const dotColor = GROUP_COLOR_CSS[g.color] || '#888';
@@ -417,10 +449,10 @@ async function renderTabList() {
     }
     if (viewMode === 'grid') {
       html += `<div class="tab-grid">`;
-      for (const tab of groupTabs) html += renderTabCard(tab);
+      for (const tab of sortedTabs) html += renderTabCard(tab);
       html += `</div>`;
     } else {
-      for (const tab of groupTabs) html += renderTabRow(tab);
+      for (const tab of sortedTabs) html += renderTabRow(tab);
     }
   }
 
@@ -817,6 +849,16 @@ async function init() {
     searchQuery = e.target.value.toLowerCase().trim();
     renderTabList();
   });
+
+  // Sort
+  const sortSelect = document.getElementById('tab-sort');
+  if (sortSelect) {
+    sortSelect.value = getSortMode();
+    sortSelect.addEventListener('change', (e) => {
+      localStorage.setItem('tabSortMode', e.target.value);
+      renderTabList();
+    });
+  }
 
   // Suggestions toggle
   document.getElementById('toggle-suggestions').addEventListener('click', () => {

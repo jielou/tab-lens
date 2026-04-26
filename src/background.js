@@ -94,7 +94,8 @@ chrome.runtime.onStartup.addListener(() => {
           url,
         };
       } else {
-        timestamps[tab.id] = { openedAt: null, lastVisitedAt: null, visitCount: 0, url };
+        const now = Date.now();
+        timestamps[tab.id] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url };
       }
     }
 
@@ -104,9 +105,10 @@ chrome.runtime.onStartup.addListener(() => {
   });
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== 'install') return;
   enqueue(async () => {
-    // Fresh start: clear all old tracking data
+    // Fresh start: clear all old tracking data (only on first install, not on update)
     await chrome.storage.local.remove(['timestamps', 'openedLog', 'closedLog', 'dailySnapshots']);
 
     const tabs = await chrome.tabs.query({});
@@ -150,7 +152,8 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
     if (isInternalUrl(tab.url)) return;
     const timestamps = await getTimestamps();
     if (!timestamps[tabId]) {
-      timestamps[tabId] = { openedAt: null, lastVisitedAt: Date.now(), visitCount: 1, url: tab.url || '' };
+      const now = Date.now();
+      timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 1, url: tab.url || '' };
     } else {
       timestamps[tabId].lastVisitedAt = Date.now();
       timestamps[tabId].visitCount = (timestamps[tabId].visitCount || 0) + 1;
@@ -173,7 +176,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (timestamps[tabId]) {
       timestamps[tabId].url = changeInfo.url;
     } else {
-      timestamps[tabId] = { openedAt: null, lastVisitedAt: null, visitCount: 0, url: changeInfo.url };
+      const now = Date.now();
+      timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url: changeInfo.url };
     }
     await setTimestamps(timestamps);
   });

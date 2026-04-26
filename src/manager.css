@@ -644,6 +644,47 @@ body {
   box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
 }
 
+#tab-sort-control {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#tab-sort-control:hover {
+  border-color: #C7D2FE;
+  box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+}
+
+.sort-icon {
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+#tab-sort {
+  padding: 2px 22px 2px 2px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234F46E5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+}
+
 #toggle-view-mode {
   padding: 8px 16px;
   border-radius: 8px;
@@ -983,6 +1024,15 @@ body {
 
 #group-preview-modal.hidden { display: none; }
 #confirm-modal.hidden { display: none; }
+
+#confirm-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
 
 .modal-overlay {
   position: absolute;

@@ -8,7 +8,7 @@
 <body>
   <nav id="nav-bar">
     <div id="nav-brand">
-      <img id="nav-logo" src="logo2.png" alt="TabLens">
+      <img id="nav-logo" src="../assets/logo2.png" alt="TabLens">
       <span id="nav-title">TabLens</span>
     </div>
     <div id="nav-links">
@@ -140,6 +140,18 @@
     <div id="tab-manager-header">
       <div id="tab-search-wrapper">
         <input type="text" id="tab-search" placeholder="Search tabs..." autocomplete="off"/>
+      </div>
+      <div id="tab-sort-control">
+        <span class="sort-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10"/><path d="M11 9h7"/><path d="M11 13h4"/><path d="M3 17l3 3 3-3"/><path d="M6 18V4"/></svg>
+        </span>
+        <select id="tab-sort">
+          <option value="default">Default</option>
+          <option value="visited-desc">Visited: newest</option>
+          <option value="visited-asc">Visited: oldest</option>
+          <option value="opened-desc">Opened: newest</option>
+          <option value="opened-asc">Opened: oldest</option>
+        </select>
       </div>
       <button id="toggle-view-mode">Switch to Grid</button>
     </div>
