@@ -1,8 +1,14 @@
 const GROUP_COLORS = ['blue','red','yellow','green','pink','purple','cyan','orange'];
 
-// In Node/Jest: load from tabData module. In browser: already global from tabData.js.
+// Use aliased names to avoid re-declaring const bindings from tabData.js in shared browser scope.
+let _stopWords, _extractDomain;
 if (typeof require !== 'undefined') {
-  var { STOP_WORDS, extractDomain } = require('./tabData'); // eslint-disable-line
+  const _td = require('./tabData');
+  _stopWords = _td.STOP_WORDS;
+  _extractDomain = _td.extractDomain;
+} else {
+  _stopWords = STOP_WORDS;        // global set by tabData.js
+  _extractDomain = extractDomain; // global set by tabData.js
 }
 
 function extractKeywords(title) {
@@ -10,7 +16,7 @@ function extractKeywords(title) {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+    .filter(w => w.length > 2 && !_stopWords.has(w));
 }
 
 function isInternal(url) {
@@ -27,7 +33,7 @@ function suggestGroups(tabs) {
   // Domain clustering
   const domainMap = new Map();
   for (const tab of eligibleTabs) {
-    const domain = extractDomain(tab.url);
+    const domain = _extractDomain(tab.url);
     if (!domain) continue;
     if (!domainMap.has(domain)) domainMap.set(domain, []);
     domainMap.get(domain).push(tab);

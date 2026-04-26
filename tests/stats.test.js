@@ -1,7 +1,7 @@
 const {
   topDomains, windowStats, focusScore, topDistractor,
   oldestSurvivor, domainObsession, closedPerDay, staleTabs,
-} = require('../stats');
+} = require('../src/stats');
 
 function makeTab(overrides = {}) {
   return {

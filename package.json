@@ -1,9 +1,9 @@
 {
   "name": "tab-manager",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "jest"
+    "test": "jest --config config/jest.config.js"
   },
   "devDependencies": {
     "jest": "^29.0.0",

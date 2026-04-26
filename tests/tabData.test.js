@@ -1,4 +1,4 @@
-const { extractDomain, formatAge, mergeTabsWithTimestamps } = require('../tabData');
+const { extractDomain, formatAge, mergeTabsWithTimestamps } = require('../src/tabData');
 
 describe('extractDomain', () => {
   test('extracts root domain from full URL', () => {

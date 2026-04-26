@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TabLens</title>
+  <link rel="stylesheet" href="manager.css" />
+</head>
+<body>
+  <nav id="nav-bar">
+    <div id="nav-brand">
+      <img id="nav-logo" src="logo2.png" alt="TabLens">
+      <span id="nav-title">TabLens</span>
+    </div>
+    <div id="nav-links">
+      <button class="nav-btn active" data-view="overview">Overview</button>
+      <button class="nav-btn" data-view="tab-manager">All Tabs</button>
+    </div>
+    <div id="nav-badges">
+      <span id="nav-tab-count" class="badge badge-blue">0 tabs</span>
+      <span id="nav-window-count" class="badge badge-green">0 windows</span>
+    </div>
+  </nav>
+
+  <div id="app-body">
+    <div id="overview-view">
+      <div class="overview-header">
+        <div class="overview-header-left">
+          <h1>You have <span class="tab-count-highlight">0</span> tabs open</h1>
+          <p class="overview-subtitle" id="overview-subtitle">Today · 0 windows</p>
+        </div>
+        <div class="overview-header-right">
+          <button id="reset-stats-btn" class="reset-stats-btn">Reset stats</button>
+          <p class="reset-stats-hint">Open tabs counted as open today · History cleared</p>
+        </div>
+      </div>
+
+      <div class="stats-cards-row" id="stats-cards-row">
+        <div class="mini-stat-card card-green">
+          <div class="mini-stat-icon-bg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+          </div>
+          <div class="mini-stat-content">
+            <div class="mini-stat-label">Net growth today</div>
+            <div class="mini-stat-value" id="growth-value">—</div>
+            <div class="mini-stat-meta" id="growth-meta">—</div>
+          </div>
+        </div>
+        <div class="mini-stat-card card-red">
+          <div class="mini-stat-icon-bg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </div>
+          <div class="mini-stat-content">
+            <div class="mini-stat-label">Most visited open</div>
+            <div class="mini-stat-value" id="visited-value">—</div>
+            <div class="mini-stat-meta" id="visited-meta">—</div>
+          </div>
+        </div>
+        <div class="mini-stat-card card-purple">
+          <div class="mini-stat-icon-bg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </div>
+          <div class="mini-stat-content">
+            <div class="mini-stat-label">Oldest tab</div>
+            <div class="mini-stat-value" id="oldest-value">—</div>
+            <div class="mini-stat-meta" id="oldest-meta">—</div>
+          </div>
+        </div>
+        <div class="mini-stat-card card-blue">
+          <div class="mini-stat-icon-bg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <div class="mini-stat-content">
+            <div class="mini-stat-label">Longest untouched</div>
+            <div class="mini-stat-value" id="untouched-value">—</div>
+            <div class="mini-stat-meta" id="untouched-meta">—</div>
+          </div>
+        </div>
+        <div class="mini-stat-card card-pink" id="duplicate-card" style="cursor:pointer">
+          <div class="mini-stat-icon-bg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </div>
+          <div class="mini-stat-content">
+            <div class="mini-stat-label">Duplicate tabs</div>
+            <div class="mini-stat-value" id="duplicate-value">—</div>
+            <div class="mini-stat-meta" id="duplicate-meta">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-row">
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h3>Tab trend</h3>
+            <span class="info-tooltip" data-tip="Daily snapshot of how many tabs were open each day.">ⓘ</span>
+          </div>
+          <div class="chart-wrapper" id="tab-trend-chart">
+            <svg class="trend-chart" viewBox="0 0 480 160">
+              <defs>
+                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.2"/>
+                  <stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <g id="chart-grid"></g>
+              <path id="chart-area" fill="url(#chartGradient)" d=""/>
+              <path id="chart-line" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d=""/>
+              <g id="chart-points"></g>
+              <g id="chart-labels"></g>
+            </svg>
+          </div>
+        </div>
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h3>Top Domains</h3>
+            <span class="info-tooltip" data-tip="Most common domains across all your open tabs.">ⓘ</span>
+          </div>
+          <div class="domains-list" id="top-domains-list"></div>
+        </div>
+      </div>
+
+      <div class="dashboard-row">
+        <div class="dashboard-card alert-card">
+          <div class="card-header">
+            <h3>⚠ Distraction Alert · Top 5</h3>
+            <span class="info-tooltip" data-tip="Tabs you switch to most often. High visit count = frequent distractions.">ⓘ</span>
+          </div>
+          <div class="alert-list" id="distraction-list"></div>
+        </div>
+        <div class="dashboard-card zombie-card">
+          <div class="card-header">
+            <h3>💤 Zombie Tabs · Top 5</h3>
+            <span class="info-tooltip" data-tip="Tabs open for 1+ hours with no activity in 3+ hours. Time to close them.">ⓘ</span>
+          </div>
+          <div class="zombie-list" id="zombie-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-manager-view" class="view-hidden">
+    <div id="tab-manager-header">
+      <div id="tab-search-wrapper">
+        <input type="text" id="tab-search" placeholder="Search tabs..." autocomplete="off"/>
+      </div>
+      <button id="toggle-view-mode">Switch to Grid</button>
+    </div>
+    <div id="tab-manager-stats"></div>
+    <div id="main">
+      <div id="tab-list"></div>
+      <div id="suggestions-panel">
+        <h2>Suggested Groups <button id="toggle-suggestions">▲</button></h2>
+        <div id="suggestions-list"></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <div id="group-preview-modal" class="hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-color-dot"></span>
+        <span class="modal-title"></span>
+      </div>
+      <p class="modal-subtitle"></p>
+      <div class="modal-list" id="modal-tab-list"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="modal-btn modal-btn-secondary">Cancel</button>
+        <button id="modal-apply" class="modal-btn modal-btn-primary">Apply Group</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="width: 380px;">
+      <div class="modal-header">
+        <span class="modal-title" id="confirm-title"></span>
+      </div>
+      <p class="modal-subtitle" id="confirm-subtitle"></p>
+      <div class="modal-actions">
+        <button id="confirm-cancel" class="modal-btn modal-btn-secondary">Cancel</button>
+        <button id="confirm-action" class="modal-btn modal-btn-primary">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="tabData.js"></script>
+  <script src="grouping.js"></script>
+  <script src="stats.js"></script>
+  <script src="manager.js"></script>
+</body>
+</html>

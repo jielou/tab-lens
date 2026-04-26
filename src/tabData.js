@@ -1,5 +1,14 @@
 const STOP_WORDS = new Set(['the','a','an','of','in','on','at','to','for','and','or','is','it','with','this','that']);
 
+function isInternalUrl(url) {
+  if (!url) return false;
+  return url.startsWith('chrome://') ||
+         url.startsWith('chrome-extension://') ||
+         url.startsWith('edge://') ||
+         url.startsWith('about:') ||
+         url.startsWith('devtools://');
+}
+
 function extractDomain(url) {
   if (!url) return '';
   try {
@@ -38,10 +47,11 @@ function mergeTabsWithTimestamps(tabs, timestamps) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { extractDomain, formatAge, mergeTabsWithTimestamps, STOP_WORDS };
+  module.exports = { extractDomain, formatAge, mergeTabsWithTimestamps, STOP_WORDS, isInternalUrl };
 } else if (typeof window !== 'undefined') {
   window.extractDomain = extractDomain;
   window.formatAge = formatAge;
   window.mergeTabsWithTimestamps = mergeTabsWithTimestamps;
   window.STOP_WORDS = STOP_WORDS;
+  window.isInternalUrl = isInternalUrl;
 }

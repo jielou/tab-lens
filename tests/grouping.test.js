@@ -1,4 +1,4 @@
-const { suggestGroups } = require('../grouping');
+const { suggestGroups } = require('../src/grouping');
 
 const GROUP_COLORS = ['blue','red','yellow','green','pink','purple','cyan','orange'];
 
