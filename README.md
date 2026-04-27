@@ -2,9 +2,24 @@
   <img src="assets/tablens_logo1.png" alt="TabLens" width="500">
 </p>
 
-# TabLens
+# TabLens `v0.2.0`
 
 TabLens is a Chrome extension that turns your tab chaos into a clear picture. Instead of hunting through dozens of open tabs, TabLens tracks how you use them — surfacing duplicates, forgotten tabs, and distraction patterns — so you can stay focused and keep your browser lean.
+
+## Table of Contents
+
+- [Screenshots](#screenshots)
+- [Features](#features)
+  - [Overview Dashboard](#overview-dashboard)
+  - [Suggested Review](#suggested-review)
+  - [Distracted Tabs](#distracted-tabs)
+  - [Zombie Tabs](#zombie-tabs)
+  - [All Tabs View](#all-tabs-view)
+  - [Smart Grouping](#smart-grouping)
+- [Install](#install)
+- [Project Structure](#project-structure)
+- [Develop](#develop)
+- [License](#license)
 
 ## Screenshots
 
