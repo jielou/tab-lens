@@ -178,6 +178,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     } else {
       const now = Date.now();
       timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url: changeInfo.url };
+
+      // Record open log for net growth stats (tab was created with empty/internal URL)
+      const domain = extractDomain(changeInfo.url);
+      const result = await chrome.storage.local.get('openedLog');
+      const log = result.openedLog || [];
+      const cutoff = Date.now() - 5 * 24 * 60 * 60 * 1000;
+      const pruned = log.filter(e => e.ts > cutoff);
+      pruned.push({ ts: Date.now(), domain });
+      await chrome.storage.local.set({ openedLog: pruned });
     }
     await setTimestamps(timestamps);
   });
