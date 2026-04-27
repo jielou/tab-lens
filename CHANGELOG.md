@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] - 2026-04-26
+## [v0.2.0-beta.1] - 2026-04-26
 
 ### Added
 - **Suggested Review** card on overview dashboard summarizing tabs that need attention
