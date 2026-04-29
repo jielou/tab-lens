@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.2.0-beta.2] - 2026-04-29
+
+### Fixed
+- **Stats no longer reset to 0 after Mac shutdown + auto-launch.** The previous recovery path only ran inside `chrome.runtime.onStartup`, which macOS often skips or fires after tab events, causing every restored tab to be stamped with `openedAt = now` and "Net growth today" to spike by the tab count.
+  - New `ensureSessionInitialized()` runs at the start of every tab event handler and uses `chrome.storage.session` (cleared on browser restart, preserved across service-worker restarts) to detect a new browser session.
+  - Old `timestamps` are migrated into a URL-keyed `recoveryPool`; subsequent `onCreated`/`onActivated`/`onUpdated` events look up restored tabs by URL and reuse the original `openedAt`/`lastVisitedAt`/`visitCount`.
+  - `(tabId, url)` overlap heuristic distinguishes a real browser restart (recycled IDs → migrate) from an extension reload (IDs preserved → skip migration).
+  - Recovery-pool cleanup window extended from 5 to 30 minutes to cover slow lazy-loaded tabs on Mac auto-launch.
+- **Net growth no longer under-counts tabs that were created with an internal/empty URL and then navigated.** `onUpdated` now also appends to `openedLog` when it creates a fresh timestamp entry, so net growth reflects the navigation as an open.
+
+### Dev
+- New `src/recovery.js` module with pure helpers `buildRecoveryPool()` and `consumeRecovery()` (dual-export for Node + browser).
+- New `tests/recovery.test.js` covering empty/null inputs, multi-URL bucketing, oldest-first ordering, single-pop bucket removal, and missing-URL filtering.
+
 ## [v0.2.0-beta.1] - 2026-04-26
 
 ### Added

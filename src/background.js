@@ -1,4 +1,10 @@
+importScripts('recovery.js');
+
 const STORAGE_KEY = 'timestamps';
+const RECOVERY_POOL_KEY = 'recoveryPool';
+const RECOVERY_CLEANUP_ALARM = 'recoveryPoolCleanup';
+const RECOVERY_CLEANUP_DELAY_MIN = 30;
+const SESSION_INIT_KEY = 'tabLensInitialized';
 
 let writeQueue = Promise.resolve();
 
@@ -40,6 +46,59 @@ async function setTimestamps(timestamps) {
   await chrome.storage.local.set({ [STORAGE_KEY]: timestamps });
 }
 
+// Migrate prior-session data to the recovery pool when this is a new browser
+// session. chrome.runtime.onStartup is unreliable — macOS auto-launching
+// Chrome at login often skips it or fires it after tab events. chrome.storage
+// .session is wiped on every browser restart, so its absence signals "first
+// event since worker wake". We then disambiguate browser-restart from
+// extension-reload: if any tracked (tab.id, url) pair still matches a live
+// tab, the IDs weren't recycled and we leave timestamps alone. Otherwise we
+// migrate and pre-recover whatever tabs are visible right now.
+async function ensureSessionInitialized() {
+  const session = await chrome.storage.session.get(SESSION_INIT_KEY);
+  if (session[SESSION_INIT_KEY]) return;
+
+  const oldTimestamps = await getTimestamps();
+  if (Object.keys(oldTimestamps).length === 0) {
+    await chrome.storage.session.set({ [SESSION_INIT_KEY]: true });
+    return;
+  }
+
+  const tabs = await chrome.tabs.query({});
+  const sameSession = tabs.some(t => {
+    const old = oldTimestamps[t.id];
+    return old && old.url === t.url;
+  });
+
+  if (sameSession) {
+    await chrome.storage.session.set({ [SESSION_INIT_KEY]: true });
+    return;
+  }
+
+  const pool = buildRecoveryPool(oldTimestamps);
+  const visibleTabs = tabs.filter(t => !isInternalUrl(t.url));
+  const newTimestamps = {};
+  for (const tab of visibleTabs) {
+    const url = tab.url || '';
+    const recovered = consumeRecovery(pool, url);
+    if (recovered) {
+      newTimestamps[tab.id] = {
+        openedAt: recovered.openedAt,
+        lastVisitedAt: recovered.lastVisitedAt,
+        visitCount: recovered.visitCount || 0,
+        url,
+      };
+    } else {
+      const now = Date.now();
+      newTimestamps[tab.id] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url };
+    }
+  }
+
+  await chrome.storage.local.set({ [STORAGE_KEY]: newTimestamps, [RECOVERY_POOL_KEY]: pool });
+  chrome.alarms.create(RECOVERY_CLEANUP_ALARM, { delayInMinutes: RECOVERY_CLEANUP_DELAY_MIN });
+  await chrome.storage.session.set({ [SESSION_INIT_KEY]: true });
+}
+
 async function updateDailySnapshot() {
   try {
     const tabs = await chrome.tabs.query({});
@@ -63,43 +122,12 @@ async function updateDailySnapshot() {
   }
 }
 
-// On startup, reinitialize timestamps because Chrome recycles tab IDs.
+// onStartup may not fire reliably on macOS auto-launch — ensureSessionInitialized
+// handles all the recovery work and is also called by every tab event, so this
+// handler just covers the housekeeping (snapshot + daily alarm).
 chrome.runtime.onStartup.addListener(() => {
   enqueue(async () => {
-    const tabs = await chrome.tabs.query({});
-    const visibleTabs = tabs.filter(t => !isInternalUrl(t.url));
-    const oldTimestamps = await getTimestamps();
-
-    // Build recoverable old entries (include old ID so we can mark used)
-    const oldEntries = Object.entries(oldTimestamps).map(([id, data]) => ({
-      id,
-      ...data,
-      used: false,
-    }));
-
-    const timestamps = {};
-    for (const tab of visibleTabs) {
-      const url = tab.url || '';
-      // Find an unused old record with the exact same URL, prefer oldest openedAt
-      const match = oldEntries
-        .filter(e => !e.used && e.url === url)
-        .sort((a, b) => (a.openedAt || Infinity) - (b.openedAt || Infinity))[0];
-
-      if (match) {
-        match.used = true;
-        timestamps[tab.id] = {
-          openedAt: match.openedAt,
-          lastVisitedAt: match.lastVisitedAt,
-          visitCount: match.visitCount || 0,
-          url,
-        };
-      } else {
-        const now = Date.now();
-        timestamps[tab.id] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url };
-      }
-    }
-
-    await setTimestamps(timestamps);
+    await ensureSessionInitialized();
     await updateDailySnapshot();
     chrome.alarms.create('dailySnapshot', { periodInMinutes: 1440 });
   });
@@ -122,6 +150,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
     await setTimestamps(timestamps);
     await chrome.storage.local.set({ openedLog });
+    await chrome.storage.session.set({ [SESSION_INIT_KEY]: true });
     await updateDailySnapshot();
     chrome.alarms.create('dailySnapshot', { periodInMinutes: 1440 });
   });
@@ -130,34 +159,66 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.tabs.onCreated.addListener((tab) => {
   if (!tab.url || isInternalUrl(tab.url)) return;
   enqueue(async () => {
-    const timestamps = await getTimestamps();
-    timestamps[tab.id] = { openedAt: Date.now(), lastVisitedAt: Date.now(), visitCount: 0, url: tab.url };
-    await setTimestamps(timestamps);
-    await updateDailySnapshot();
+    await ensureSessionInitialized();
+    const result = await chrome.storage.local.get([STORAGE_KEY, RECOVERY_POOL_KEY, 'openedLog']);
+    const timestamps = result[STORAGE_KEY] || {};
+    const pool = result[RECOVERY_POOL_KEY] || {};
 
-    // Record open log for net growth stats (survives tab ID resets)
-    const domain = extractDomain(tab.url || '');
-    const result = await chrome.storage.local.get('openedLog');
+    const recovered = consumeRecovery(pool, tab.url);
+    if (recovered) {
+      timestamps[tab.id] = {
+        openedAt: recovered.openedAt,
+        lastVisitedAt: recovered.lastVisitedAt,
+        visitCount: recovered.visitCount || 0,
+        url: tab.url,
+      };
+      await chrome.storage.local.set({ [STORAGE_KEY]: timestamps, [RECOVERY_POOL_KEY]: pool });
+      await updateDailySnapshot();
+      return;
+    }
+
+    const now = Date.now();
+    timestamps[tab.id] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url: tab.url };
     const log = result.openedLog || [];
-    const cutoff = Date.now() - 5 * 24 * 60 * 60 * 1000;
+    const cutoff = now - 5 * 24 * 60 * 60 * 1000;
     const pruned = log.filter(e => e.ts > cutoff);
-    pruned.push({ ts: Date.now(), domain });
-    await chrome.storage.local.set({ openedLog: pruned });
+    pruned.push({ ts: now, domain: extractDomain(tab.url) });
+    await chrome.storage.local.set({ [STORAGE_KEY]: timestamps, openedLog: pruned });
+    await updateDailySnapshot();
   });
 });
 
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   enqueue(async () => {
+    await ensureSessionInitialized();
     const tab = await chrome.tabs.get(tabId);
     if (isInternalUrl(tab.url)) return;
-    const timestamps = await getTimestamps();
-    if (!timestamps[tabId]) {
-      const now = Date.now();
-      timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 1, url: tab.url || '' };
-    } else {
-      timestamps[tabId].lastVisitedAt = Date.now();
+
+    const result = await chrome.storage.local.get([STORAGE_KEY, RECOVERY_POOL_KEY]);
+    const timestamps = result[STORAGE_KEY] || {};
+    const pool = result[RECOVERY_POOL_KEY] || {};
+    const now = Date.now();
+
+    if (timestamps[tabId]) {
+      timestamps[tabId].lastVisitedAt = now;
       timestamps[tabId].visitCount = (timestamps[tabId].visitCount || 0) + 1;
+      await setTimestamps(timestamps);
+      return;
     }
+
+    const recovered = consumeRecovery(pool, tab.url || '');
+    if (recovered) {
+      timestamps[tabId] = {
+        openedAt: recovered.openedAt,
+        lastVisitedAt: now,
+        visitCount: (recovered.visitCount || 0) + 1,
+        url: tab.url || '',
+      };
+      await chrome.storage.local.set({ [STORAGE_KEY]: timestamps, [RECOVERY_POOL_KEY]: pool });
+      return;
+    }
+
+    timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 1, url: tab.url || '' };
     await setTimestamps(timestamps);
   });
 });
@@ -165,7 +226,11 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (!changeInfo.url) return;
   enqueue(async () => {
-    const timestamps = await getTimestamps();
+    await ensureSessionInitialized();
+    const result = await chrome.storage.local.get([STORAGE_KEY, RECOVERY_POOL_KEY, 'openedLog']);
+    const timestamps = result[STORAGE_KEY] || {};
+    const pool = result[RECOVERY_POOL_KEY] || {};
+
     if (isInternalUrl(changeInfo.url)) {
       if (timestamps[tabId]) {
         delete timestamps[tabId];
@@ -173,27 +238,38 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
       }
       return;
     }
+
     if (timestamps[tabId]) {
       timestamps[tabId].url = changeInfo.url;
-    } else {
-      const now = Date.now();
-      timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url: changeInfo.url };
-
-      // Record open log for net growth stats (tab was created with empty/internal URL)
-      const domain = extractDomain(changeInfo.url);
-      const result = await chrome.storage.local.get('openedLog');
-      const log = result.openedLog || [];
-      const cutoff = Date.now() - 5 * 24 * 60 * 60 * 1000;
-      const pruned = log.filter(e => e.ts > cutoff);
-      pruned.push({ ts: Date.now(), domain });
-      await chrome.storage.local.set({ openedLog: pruned });
+      await setTimestamps(timestamps);
+      return;
     }
-    await setTimestamps(timestamps);
+
+    const recovered = consumeRecovery(pool, changeInfo.url);
+    if (recovered) {
+      timestamps[tabId] = {
+        openedAt: recovered.openedAt,
+        lastVisitedAt: recovered.lastVisitedAt,
+        visitCount: recovered.visitCount || 0,
+        url: changeInfo.url,
+      };
+      await chrome.storage.local.set({ [STORAGE_KEY]: timestamps, [RECOVERY_POOL_KEY]: pool });
+      return;
+    }
+
+    const now = Date.now();
+    timestamps[tabId] = { openedAt: now, lastVisitedAt: now, visitCount: 0, url: changeInfo.url };
+    const log = result.openedLog || [];
+    const cutoff = now - 5 * 24 * 60 * 60 * 1000;
+    const pruned = log.filter(e => e.ts > cutoff);
+    pruned.push({ ts: now, domain: extractDomain(changeInfo.url) });
+    await chrome.storage.local.set({ [STORAGE_KEY]: timestamps, openedLog: pruned });
   });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   enqueue(async () => {
+    await ensureSessionInitialized();
     const timestamps = await getTimestamps();
     const tabData = timestamps[tabId] || {};
     delete timestamps[tabId];
@@ -215,6 +291,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'dailySnapshot') {
     enqueue(() => updateDailySnapshot());
+  } else if (alarm.name === RECOVERY_CLEANUP_ALARM) {
+    enqueue(() => chrome.storage.local.remove(RECOVERY_POOL_KEY));
   }
 });
 

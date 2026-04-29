@@ -2,7 +2,9 @@
   <img src="assets/tablens_logo1.png" alt="TabLens" width="500">
 </p>
 
-# TabLens `v0.2.0-beta.1`
+# TabLens
+
+![Release](https://img.shields.io/github/v/release/jielou/tab-lens?include_prereleases)
 
 TabLens is a Chrome extension that turns your tab chaos into a clear picture. Instead of hunting through dozens of open tabs, TabLens tracks how you use them — surfacing duplicates, forgotten tabs, and distraction patterns — so you can stay focused and keep your browser lean.
 
