@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.0.0] - 2026-05-06
+
+### Added
+- Initial stable release of TabLens.
+
 ## [v0.2.0-beta.2] - 2026-04-29
 
 ### Fixed
